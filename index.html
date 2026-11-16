@@ -1,233 +1,106 @@
-<!DOCTYPE html>
-<html lang="zh-Hans">
+<!doctype html>
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>《借风晒衣》｜庭院轻策略治愈解谜</title>
-  <meta name="description" content="不用抢时间，只借四阵风——在午后阳光庭院的 3×3 竹架上安排薄衫与厚袄，借四向清风吹干收衣。" />
-  <link rel="stylesheet" href="./index.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#EAF5FB" />
+  <title>借风晒衣</title>
+  <meta name="description" content="看准风向，把衣服晒干。一款轻松的 3×3 解谜小游戏。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="index.css?v=3" />
 </head>
 <body>
-
-  <!-- ====================================================================
-       1. TITLE SCREEN (Commercial Illustrated Hero)
-       ==================================================================== -->
-  <section id="screen-title" class="screen-view title-screen" aria-label="游戏主界面">
-    <div class="title-hero-card">
-      <span class="title-badge">🍃 午后庭院 · 空间策略治愈解谜</span>
-      <h1 class="game-logo-title">借风晒衣</h1>
-      <p class="game-logo-tagline">
-        不用抢时间，只借四阵风。<br/>
-        预判前排遮挡，把厚袄留到对的风口，让阳光竹架连续腾空。
-      </p>
-
-      <div class="title-cta-stack">
-        <button type="button" id="btn-title-continue" class="game-btn game-btn-hero">
-          ☀ 开始晒衣之旅
-        </button>
-        <div class="title-secondary-row">
-          <button type="button" id="btn-title-levels" class="game-btn">
-            🗺 选择关卡 (15关)
-          </button>
-          <button type="button" id="btn-title-rules" class="game-btn">
-            📖 晒衣图鉴与规则
-          </button>
-        </div>
+  <div id="app">
+    <!-- 首页 -->
+    <section class="screen" id="screen-home">
+      <div class="home-sky">
+        <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
       </div>
-    </div>
-  </section>
-
-  <!-- ====================================================================
-       2. CHAPTER & LEVEL SELECTION MAP SCREEN
-       ==================================================================== -->
-  <section id="screen-map" class="screen-view map-screen" aria-label="章节与关卡地图" hidden>
-    <div class="map-container">
-      <header class="map-topbar">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <button type="button" id="btn-map-back" class="game-btn game-btn-sm">◀ 返回封面</button>
-          <div>
-            <h2 style="margin:0;font-family:'Noto Serif SC',serif;font-size:1.25rem;color:var(--wood-dark);">
-              庭院晒衣手账 · 共 15 关
-            </h2>
-            <span id="map-progress-summary" style="font-size:0.8rem;color:var(--ink-body);">已达标 0 / 15 关</span>
+      <div class="home-inner">
+        <div class="home-line" id="home-line" aria-hidden="true"></div>
+        <h1 class="logo">借风晒衣</h1>
+        <p class="tagline">看准风向，把衣服晒干</p>
+        <div class="home-actions">
+          <button class="btn btn-primary btn-xl" id="btn-start">开始游戏</button>
+          <div class="home-links">
+            <button class="btn btn-ghost" id="btn-levels">选择关卡</button>
+            <button class="btn btn-ghost" id="btn-howto-home">怎么玩</button>
           </div>
         </div>
-        <button type="button" id="btn-map-rules" class="game-btn game-btn-sm">📖 规则与标准算例</button>
+      </div>
+      <button class="icon-btn home-sound" id="btn-home-sound" aria-label="声音"></button>
+    </section>
+
+    <!-- 关卡地图 -->
+    <section class="screen" id="screen-map" hidden>
+      <header class="topbar">
+        <button class="icon-btn" id="btn-map-back" aria-label="返回">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <div class="topbar-title">选择关卡</div>
+        <div class="star-total" id="star-total"></div>
+      </header>
+      <div class="map-scroll" id="map-list"></div>
+    </section>
+
+    <!-- 游戏 -->
+    <section class="screen" id="screen-play" hidden>
+      <header class="topbar">
+        <button class="icon-btn" id="btn-play-back" aria-label="返回">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+        </button>
+        <div class="topbar-title" id="play-title">第 1 关</div>
+        <button class="icon-btn" id="btn-menu" aria-label="菜单">
+          <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+        </button>
       </header>
 
-      <div id="map-chapters-root" style="display:flex;flex-direction:column;gap:16px;"></div>
-    </div>
-  </section>
-
-  <!-- ====================================================================
-       3. GAMEPLAY COURTYARD STAGE SCREEN
-       ==================================================================== -->
-  <main id="screen-play" class="screen-view play-screen" aria-label="庭院晒场关卡" hidden>
-    <!-- Top Floating Game HUD -->
-    <header class="play-hud">
-      <div class="hud-left">
-        <button type="button" id="btn-play-to-map" class="game-btn game-btn-sm" title="返回关卡地图">🗺 选关</button>
-        <div>
-          <div id="hud-level-title" class="hud-level-name">第 1 关 · 四向回旋</div>
-          <div id="hud-level-sub" style="font-size:0.74rem;color:var(--ink-body);">薄衣+2分(1风) · 厚衣+5分(2风)</div>
+      <div class="score-row">
+        <div class="score-num"><b id="score-now">0</b><span>/ <i id="score-target">20</i> 分</span></div>
+        <div class="progress" id="progress">
+          <div class="progress-fill" id="progress-fill"></div>
+          <div class="progress-goal" id="progress-goal"></div>
         </div>
       </div>
 
-      <div class="hud-score-pill" title="当前收衣得分 / 通关目标分">
-        <span style="font-size:0.78rem;font-weight:800;color:var(--ink-body);">收衣分</span>
-        <div class="score-progress-wrap">
-          <div id="hud-score-bar" class="score-progress-bar" style="width:0%"></div>
+      <div class="wind-row" id="wind-row"></div>
+
+      <div class="stage">
+        <div class="coach" id="coach" hidden></div>
+        <div class="board-wrap" id="board-wrap">
+          <div class="wind-side" id="wind-side"></div>
+          <div class="board" id="board"></div>
+          <div class="gust-layer" id="gust-layer"></div>
         </div>
-        <span id="hud-score-text" class="hud-score-numbers">0 / 20</span>
+        <div class="hint-line" id="hint-line"></div>
       </div>
 
-      <div class="hud-right">
-        <button type="button" id="btn-play-hint" class="game-btn game-btn-sm" title="分层策略提示">💡 提示</button>
-        <button type="button" id="btn-play-witness" class="game-btn game-btn-sm" title="观看本关达标演示">🎬 演示</button>
-        <button type="button" id="btn-play-bgm" class="game-btn game-btn-sm" title="庭院微风风铃环境音">🎐 庭院音:关</button>
-        <button type="button" id="btn-play-sfx" class="game-btn game-btn-sm" title="开关音效">🔊</button>
-        <button type="button" id="btn-play-restart" class="game-btn game-btn-sm" title="一键重开本局">↻ 重开</button>
-      </div>
-    </header>
-
-    <!-- 4-Wind Weather Forecast Ribbon -->
-    <div id="weather-ribbon" class="weather-ribbon" aria-label="四阵风向预报"></div>
-
-    <!-- Optional Contextual Tutorial / Hint Speech Bubble -->
-    <div id="guide-bubble" class="guide-speech-bubble" hidden></div>
-
-    <!-- Center 2.5D Bamboo Drying Rack + Real-Time Particle & Wind Streamline Canvas -->
-    <div class="courtyard-arena">
-      <canvas id="courtyard-vfx-canvas" class="vfx-canvas"></canvas>
-
-      <div class="bamboo-rack-frame">
-        <div id="edge-n" class="edge-wind-indicators edge-n" aria-hidden="true"></div>
-        <div id="edge-s" class="edge-wind-indicators edge-s" aria-hidden="true"></div>
-        <div id="edge-w" class="edge-wind-indicators edge-w" aria-hidden="true"></div>
-        <div id="edge-e" class="edge-wind-indicators edge-e" aria-hidden="true"></div>
-
-        <div id="courtyard-grid" class="courtyard-grid" role="grid" aria-label="3乘3庭院竹竿晒场"></div>
-      </div>
-    </div>
-
-    <!-- Bottom Woven Laundry Basket Queue & Tactile Action Dock -->
-    <section class="bottom-dock" aria-label="衣篮队列与操作栏">
-      <div class="dock-top-row">
-        <div id="dock-prompt-text" class="prompt-banner">
-          点击竹架空格预览落点，再次点击该格或按“挂上竹竿”即可确认
+      <footer class="tray">
+        <div class="tray-main">
+          <div class="current-card" id="current-card"></div>
+          <div class="tray-side">
+            <div class="queue" id="queue"></div>
+            <div class="tray-actions">
+              <button class="chip-btn" id="btn-ticket"></button>
+              <button class="btn btn-primary btn-confirm" id="btn-confirm" hidden>挂在这里</button>
+            </div>
+          </div>
         </div>
+      </footer>
 
-        <!-- Normal Gameplay Buttons -->
-        <div id="dock-normal-btns" class="dock-actions">
-          <button type="button" id="btn-confirm-hang" class="game-btn game-btn-emerald" disabled>
-            📌 挂上竹竿
-          </button>
-          <button type="button" id="btn-cancel-preview" class="game-btn game-btn-sm" disabled>
-            取消
-          </button>
-          <button type="button" id="btn-use-ticket" class="game-btn game-btn-wind">
-            🎫 挪位券 (2)
-          </button>
-          <button type="button" id="btn-open-recap" class="game-btn game-btn-sm" title="查看阵风受风记录与测试数据">
-            📋 战报
-          </button>
-        </div>
-
-        <!-- Witness / Run Replay Controls -->
-        <div id="dock-replay-btns" class="dock-actions" hidden>
-          <button type="button" id="btn-replay-prev" class="game-btn game-btn-sm">◀ 上一步</button>
-          <button type="button" id="btn-replay-next" class="game-btn game-btn-sm game-btn-wind">下一步 ▶</button>
-          <button type="button" id="btn-replay-auto" class="game-btn game-btn-sm">▶ 自动播放</button>
-          <button type="button" id="btn-replay-close" class="game-btn game-btn-sm">退出回放</button>
-        </div>
-      </div>
-
-      <!-- 12-Garment Queue Basket Grouped by Wind Rounds -->
-      <div id="basket-queue-strip" class="basket-queue-strip"></div>
+      <div class="toast" id="toast"></div>
+      <div class="demo-banner" id="demo-banner" hidden>示范中 · 点这里停止</div>
     </section>
-  </main>
 
-  <!-- ====================================================================
-       4. ENDGAME VICTORY / SUMMARY CELEBRATION MODAL
-       ==================================================================== -->
-  <div id="modal-endgame" class="game-modal-backdrop" role="dialog" aria-modal="true" hidden>
-    <div class="game-modal-card">
-      <div id="endgame-stars" class="result-stars-banner">⭐⭐⭐</div>
-      <h2 id="endgame-heading" style="margin:0;text-align:center;font-family:'Noto Serif SC',serif;font-size:1.5rem;color:var(--wood-dark);">
-        清风满院 · 晒衣达标！
-      </h2>
-      <div id="endgame-score-line" class="result-score-big">21 / 20 分</div>
-      <div id="endgame-sub-stats" style="text-align:center;font-size:0.84rem;color:var(--ink-body);"></div>
-
-      <div id="endgame-diagnosis-box" class="gust-recap-box"></div>
-
-      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px;">
-        <button type="button" id="btn-endgame-next" class="game-btn game-btn-hero" style="flex:1 1 180px;">
-          下一关 ▶
-        </button>
-        <button type="button" id="btn-endgame-retry" class="game-btn" style="flex:1 1 120px;">
-          ↻ 再刷高分
-        </button>
-        <button type="button" id="btn-endgame-witness" class="game-btn game-btn-wind" style="flex:1 1 120px;">
-          🎬 看达标演示
-        </button>
-        <button type="button" id="btn-endgame-close" class="game-btn game-btn-sm">
-          留在本盘复盘
-        </button>
-      </div>
+    <!-- 弹层 -->
+    <div class="layer" id="layer" hidden>
+      <div class="scrim" id="scrim"></div>
+      <div class="sheet" id="sheet"></div>
     </div>
   </div>
 
-  <!-- ====================================================================
-       5. ILLUSTRATED HANDBOOK & RULES MODAL
-       ==================================================================== -->
-  <div id="modal-handbook" class="game-modal-backdrop" role="dialog" aria-modal="true" hidden>
-    <div class="game-modal-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <h2 style="margin:0;font-family:'Noto Serif SC',serif;font-size:1.25rem;color:var(--wood-dark);">
-          📖 《借风晒衣》庭院图鉴与规则
-        </h2>
-        <button type="button" id="btn-close-handbook" class="game-btn game-btn-sm">关闭</button>
-      </div>
-
-      <div class="gust-recap-box" style="gap:10px;font-size:0.84rem;">
-        <div>
-          <strong>👕 亚麻薄衫 (L)</strong>：初始湿度 <code>1💧</code>，被风吹中 <strong>1 次</strong>即干并自动收走，得 <strong>+2 分</strong>（腾出空格为后排让路）。
-        </div>
-        <div>
-          <strong>🧥 绞花厚袄 (H)</strong>：初始湿度 <code>2💧💧</code>，需跨两阵风累计受风 <strong>2 次</strong>才干，收走得 <strong>+5 分</strong>。
-        </div>
-        <div>
-          <strong>🌬 四向阵风与前排遮挡</strong>：每挂满 3 件衣物（教学关 2–3 件）自动吹来一阵方向已知的风。西风左→右扫每行，东风右→左，北风上→下扫每列，南风下→上。<strong>每条扫描线只吹遇到的第一件衣物</strong>；即便前排在本阵干了收走，后排本阵也不补吹！
-        </div>
-        <div>
-          <strong>🎫 挪位券（每局 2 张）</strong>：在等待挂衣时，可把 1 件在场衣物移到空格（湿度不变，不耗步数，也不立即招风）。直接点击场上的衣物即可快捷发动！
-        </div>
-        <div>
-          <strong>🏆 计分与终局</strong>：<code>总分 = 2 × 已收薄衫 + 5 × 已收厚袄</code>。第 12 件处理完并结算第 4 阵风后结束，留在场上的湿衣得 0 分。
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ====================================================================
-       6. BATTLE LOG & TELEMETRY MODAL
-       ==================================================================== -->
-  <div id="modal-recap" class="game-modal-backdrop" role="dialog" aria-modal="true" hidden>
-    <div class="game-modal-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <h2 style="margin:0;font-family:'Noto Serif SC',serif;font-size:1.15rem;color:var(--wood-dark);">
-          📋 本局阵风战报与测试日志
-        </h2>
-        <div style="display:flex;gap:8px;">
-          <button type="button" id="btn-export-logs" class="game-btn game-btn-sm">导出 JSON</button>
-          <button type="button" id="btn-close-recap" class="game-btn game-btn-sm">关闭</button>
-        </div>
-      </div>
-      <div id="recap-gust-list" class="gust-recap-box"></div>
-    </div>
-  </div>
-
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="app.js?v=3"></script>
 </body>
 </html>

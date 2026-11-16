@@ -1,1055 +1,653 @@
+// 借风晒衣 · 简洁亲和版
+// 规则全部由 engine.js 计算；本文件只负责界面、引导与动效。
 import {
   WIND_META,
   GARMENT_META,
   createInitialState,
   isBoardFull,
-  countEmptyCells,
   previewActionForecast,
   applyMoveAction,
   applyPlaceOrSkipAction,
-  replayActionSequence,
-  diagnoseRemainingGarments,
-  generateTwoLevelHints,
 } from './engine.js';
 import { LEVELS } from './levels.js';
 import { sound } from './audio.js';
-import { CourtyardVfxEngine } from './vfx.js';
 
-const STORAGE_KEY = 'jggo_commercial_v1';
+const SAVE_KEY = 'jggo_friendly_v3';
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const safe = (fn) => { try { fn(); } catch (_) { /* 音频失败不影响游戏 */ } };
 
-/**
- * Hand-crafted Rich Illustrated Garment Sprites with Wooden Clothespins,
- * Fabric Folds, Pockets, Knit Cable Patterns, and Soft Highlights.
- */
-function renderIllustratedGarmentSvg(type, wetness) {
-  const isDamp2 = wetness >= 2;
-  if (type === 'L') {
-    // Crisp Sunlit White-Cyan Linen Shirt with Wooden Clothespins
-    return `
-      <svg class="garment-illustration" viewBox="0 0 80 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <linearGradient id="linenBody" x1="40" y1="12" x2="40" y2="68" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="#FFFFFF"/>
-            <stop offset="65%" stop-color="#E6F7FC"/>
-            <stop offset="100%" stop-color="#BCE7F5"/>
-          </linearGradient>
-        </defs>
-        <!-- Hanging Shadow -->
-        <path d="M23 16 L10 26 L17 37 L24 33 L22 65 Q40 68 58 65 L56 33 L63 37 L70 26 L57 16 Z" fill="rgba(18,82,108,0.16)" transform="translate(1,3)"/>
-        <!-- Shirt Silhouette -->
-        <path d="M24 14 L9 25 L16 37 L24 32 L22 64 Q40 67 58 64 L56 32 L64 37 L71 25 L56 14 C50 19 30 19 24 14 Z"
-              fill="url(#linenBody)" stroke="#16698A" stroke-width="2.6" stroke-linejoin="round"/>
-        <!-- Collar & Placket -->
-        <path d="M28 15 L36 23 L40 19 L44 23 L52 15" stroke="#16698A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="#D5F1FA"/>
-        <line x1="40" y1="20" x2="40" y2="42" stroke="#53A8C6" stroke-width="1.8" stroke-linecap="round"/>
-        <!-- Pocket & Gentle Breeze Folds -->
-        <rect x="45" y="30" width="8" height="9" rx="2" stroke="#3D95B5" stroke-width="1.6" fill="rgba(255,255,255,0.6)"/>
-        <path d="M30 46 Q33 54 29 61" stroke="#7AC3DC" stroke-width="1.8" stroke-linecap="round"/>
-        <path d="M50 48 Q53 55 51 61" stroke="#7AC3DC" stroke-width="1.8" stroke-linecap="round"/>
-        <!-- Two Wooden Clothespins on Top Shoulders -->
-        <rect x="24" y="5" width="5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
-        <rect x="51" y="5" width="5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
-      </svg>
-    `;
-  }
+/* ------------------------------------------------------------------ */
+/* 美术：扁平衣物插画                                                    */
+/* ------------------------------------------------------------------ */
+const PIN = '<rect x="21" y="0" width="6" height="11" rx="2" fill="#d9a46c"/><rect x="37" y="0" width="6" height="11" rx="2" fill="#d9a46c"/>';
+const THIN_SVG = `<svg viewBox="0 0 64 70" aria-hidden="true">
+  <path d="M21 7 L7 15 L2 28 L13 32 L16 25 L16 60 Q16 63 19 63 L45 63 Q48 63 48 60 L48 25 L51 32 L62 28 L57 15 L43 7 Q32 15 21 7 Z" fill="#8fd0ef"/>
+  <path d="M21 7 Q32 15 43 7 L40 6 Q32 12 24 6 Z" fill="#5fb3dd"/>
+  <path d="M16 25 L16 60 Q16 63 19 63 L24 63 L24 20 Z" fill="#000" opacity=".05"/>
+  ${PIN}</svg>`;
+const THICK_SVG = `<svg viewBox="0 0 64 70" aria-hidden="true">
+  <path d="M20 7 L6 16 L1 52 L12 54 L16 31 L16 60 Q16 64 20 64 L44 64 Q48 64 48 60 L48 31 L52 54 L63 52 L58 16 L44 7 Q32 16 20 7 Z" fill="#f4906f"/>
+  <path d="M20 7 Q32 16 44 7 L41 5 Q32 12 23 5 Z" fill="#d96a4a"/>
+  <path d="M16 56 L48 56 L48 60 Q48 64 44 64 L20 64 Q16 64 16 60 Z" fill="#d96a4a"/>
+  <path d="M1 48 L12 50 L12 54 L1 52 Z M52 50 L63 48 L63 52 L52 54 Z" fill="#d96a4a"/>
+  <path d="M22 30 H42 M22 38 H42 M22 46 H42" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".45"/>
+  ${PIN}</svg>`;
+const DROP = (dry) => `<svg class="drop${dry ? ' is-dry' : ''}" viewBox="0 0 10 13"><path d="M5 0 C5 0 0 6 0 8.4 A5 4.6 0 0 0 10 8.4 C10 6 5 0 5 0 Z"/></svg>`;
+const STAR = (on) => `<svg class="s${on ? ' on' : ''}" viewBox="0 0 24 24"><path d="M12 1.8l3 6.4 7 .8-5.2 4.8 1.4 7-6.2-3.6-6.2 3.6 1.4-7L2 9l7-.8z" stroke-linejoin="round"/></svg>`;
+const HAND = `<svg class="hand" viewBox="0 0 48 48"><path d="M18 22V9a3 3 0 0 1 6 0v11l1-.2V16a3 3 0 0 1 6 0v4.6l.8-.1a3 3 0 0 1 5.2 2V33c0 7-5 11-11 11h-2c-4 0-6.5-1.8-8.6-4.6L9.2 31a3 3 0 0 1 4.6-3.8L18 31z" fill="#fff" stroke="#2d3a46" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
 
-  // Cozy Terracotta Cable-Knit Thick Coat / Sweater (H)
-  // Visual feedback: darker damp hem when wetness === 2, brighter warm amber when wetness === 1 (half-dry!)
-  const bodyTop = isDamp2 ? '#F6B089' : '#FFD09E';
-  const bodyBot = isDamp2 ? '#C95B2B' : '#E87A3D';
-  const strokeCol = isDamp2 ? '#6E260E' : '#853312';
-
-  return `
-    <svg class="garment-illustration" viewBox="0 0 80 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="woolBody_${wetness}" x1="40" y1="12" x2="40" y2="68" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="${bodyTop}"/>
-          <stop offset="100%" stop-color="${bodyBot}"/>
-        </linearGradient>
-      </defs>
-      <!-- Drop Shadow -->
-      <path d="M22 15 L6 29 L13 44 L22 38 L21 66 L59 66 L58 38 L67 44 L74 29 L58 15 Z" fill="rgba(75,24,6,0.22)" transform="translate(1,3)"/>
-      <!-- Heavy Sweater Silhouette -->
-      <path d="M23 13 L6 28 L13 43 L22 37 L21 65 Q40 68 59 65 L58 37 L67 43 L74 28 L57 13 C50 18 30 18 23 13 Z"
-            fill="url(#woolBody_${wetness})" stroke="${strokeCol}" stroke-width="2.8" stroke-linejoin="round"/>
-      <!-- Thick Ribbed Turtleneck Collar -->
-      <rect x="28" y="9" width="24" height="9" rx="4.5" fill="#FCE3C8" stroke="${strokeCol}" stroke-width="2.4"/>
-      <!-- Cable-Knit Center Pattern & Ribbed Hem -->
-      <path d="M36 22 Q40 27 36 32 Q40 37 36 42 Q40 47 36 52" stroke="#FFEAD2" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
-      <path d="M44 22 Q40 27 44 32 Q40 37 44 42 Q40 47 44 52" stroke="#FFEAD2" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
-      <line x1="22" y1="58" x2="58" y2="58" stroke="${strokeCol}" stroke-width="2.2"/>
-      ${isDamp2 ? `<path d="M22 58 L58 58 L59 65 Q40 68 21 65 Z" fill="rgba(26,115,158,0.32)"/>` : ''}
-      <!-- Two Sturdy Wooden Clothespins -->
-      <rect x="21" y="4" width="5.5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
-      <rect x="53.5" y="4" width="5.5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
-    </svg>
-  `;
+function garmentHtml(type, wetness, { ghost = false, drops = true } = {}) {
+  const w = wetness ?? GARMENT_META[type].initialWetness;
+  const dropHtml = drops ? `<div class="drops">${Array.from({ length: w }, () => DROP(false)).join('')}</div>` : '';
+  return `<div class="garment${ghost ? ' is-ghost' : ''}">${type === 'H' ? THICK_SVG : THIN_SVG}${dropHtml}</div>`;
 }
 
-class CommercialJggoGame {
+/* ------------------------------------------------------------------ */
+/* 关卡信息与存档                                                        */
+/* ------------------------------------------------------------------ */
+const CHAPTERS = [
+  { stage: '新手教学', name: '新手教学', desc: '三步学会怎么玩' },
+  { stage: '早期标准', name: '第一章 · 微风', desc: '四个方向的风轮流吹' },
+  { stage: '中期进阶', name: '第二章 · 穿堂风', desc: '学会让衣服互相让位' },
+  { stage: '后期挑战', name: '第三章 · 大风天', desc: '每一分都要算清楚' },
+];
+const isTutorial = (lv) => lv.stage === '新手教学';
+const levelLabel = (lv) => (isTutorial(lv) ? lv.id.slice(1) : lv.id.slice(1));
+const levelName = (lv) => (isTutorial(lv) ? `教学 ${lv.id.slice(1)}` : `第 ${lv.id.slice(1)} 关`);
+const shortTitle = (lv) => (lv.title.split('·')[1] || '').replace(/（.*?）/g, '').trim();
+
+function starsFor(lv, score) {
+  if (score < lv.target) return 0;
+  const best = Math.max(lv.maxFoundScore ?? lv.target, lv.witnessScore ?? lv.target, lv.target);
+  if (score >= best) return 3;
+  return score >= lv.target + Math.ceil((best - lv.target) / 2) ? 2 : 1;
+}
+
+const COACH = {
+  T1: ['点<b>亮起的格子</b>，挂上第一件衣服', '风从<b>左边</b>吹来，每行<b>第一件</b>会被吹到'],
+  T2: ['这次是<b>北风</b>，从上往下吹', '每一列只有<b>最上面</b>那件吹得到', '挂满第一排，三列都能吹到'],
+  T3: ['<b>厚衣</b>有 2 滴水，要吹 <b>2 阵风</b>才会干', '挂好这件就会起风，看看厚衣', '厚衣还剩 1 滴，下一阵<b>北风</b>会吹干它', '最后一件，同样挂在第一排'],
+};
+const TUTORIAL_TOAST = {
+  T1: ['吹干啦！薄衣每件 +2'],
+  T2: ['三列各吹干一件 +6'],
+  T3: ['厚衣少了 1 滴，薄衣吹干 +2', '厚衣也干了 +5'],
+};
+
+/* ------------------------------------------------------------------ */
+class Game {
   constructor() {
-    this.levels = LEVELS;
-    this.currentScreen = 'title'; // 'title' | 'map' | 'play'
-    this.currentLevelIndex = 0;   // Start fresh players at T1 (15s onboarding), or resume saved level
+    this.save = this.loadSave();
+    this.level = null;
     this.state = null;
-
-    this.interactionMode = 'place'; // 'place' | 'move' | 'replay'
-    this.previewCell = null;
-    this.moveSource = null;
-    this.moveDest = null;
-    this.hintStage = 0;
-    this.replayData = null;
-    this.justBillowedCells = new Set();
-
-    // Progress & Telemetry
-    this.bestScores = {};
-    this.retryCounts = {};
-    this.telemetryEvents = [];
-    this.cancelCountThisRun = 0;
-    this.activeDurationMs = 0;
-    this.lastResumeTs = performance.now();
-
-    this._loadProgress();
-
-    // Initialize VFX Canvas
-    const canvasEl = document.getElementById('courtyard-vfx-canvas');
-    this.vfx = new CourtyardVfxEngine(canvasEl);
-
-    this._bindEvents();
-    this._renderTitleButtonState();
-    this.showScreen('title');
+    this.mode = 'idle'; // idle | preview | pickMove | movePreview
+    this.sel = null; // {r,c} 预览格 / 待挪衣服
+    this.target = null; // 挪位目标
+    this.busy = false;
+    this.demoToken = 0;
+    sound.sfxEnabled = this.save.sfx !== false;
+    this.bind();
+    this.renderHomeArt();
+    this.show('home');
   }
 
-  _loadProgress() {
+  loadSave() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      this.bestScores = data.bestScores || {};
-      this.retryCounts = data.retryCounts || {};
-      if (typeof data.currentLevelIndex === 'number' && this.levels[data.currentLevelIndex]) {
-        this.currentLevelIndex = data.currentLevelIndex;
-      }
-      if (data.savedState && data.savedState.levelId === this.levels[this.currentLevelIndex].id) {
-        this.state = data.savedState;
-      }
-    } catch (e) {}
+      return { unlocked: 0, best: {}, stars: {}, sfx: true, ...(JSON.parse(localStorage.getItem(SAVE_KEY)) || {}) };
+    } catch (_) {
+      return { unlocked: 0, best: {}, stars: {}, sfx: true };
+    }
   }
+  persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (_) {} }
 
-  _saveProgress() {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          version: '1.0',
-          currentLevelIndex: this.currentLevelIndex,
-          bestScores: this.bestScores,
-          retryCounts: this.retryCounts,
-          savedState: this.state,
-        })
-      );
-    } catch (e) {}
-  }
-
-  _fgSec() {
-    const extra =
-      this.currentScreen === 'play' && this.state?.status === 'playing'
-        ? performance.now() - this.lastResumeTs
-        : 0;
-    return Math.round((this.activeDurationMs + extra) / 100) / 10;
-  }
-
-  _logEvent(eventType, payload = {}) {
-    const lv = this.levels[this.currentLevelIndex];
-    this.telemetryEvents.push({
-      ts: new Date().toISOString(),
-      levelId: lv?.id,
-      fgSec: this._fgSec(),
-      eventType,
-      ...payload,
+  /* ---------------- 绑定 ---------------- */
+  bind() {
+    const click = (id, fn) => $(id).addEventListener('click', () => { safe(() => sound.playUiClick()); fn(); });
+    click('btn-start', () => this.startLevel(Math.min(this.save.unlocked, LEVELS.length - 1)));
+    click('btn-levels', () => this.show('map'));
+    click('btn-howto-home', () => this.openHowto());
+    click('btn-home-sound', () => this.toggleSfx());
+    click('btn-map-back', () => this.show('home'));
+    click('btn-play-back', () => { this.stopDemo(); this.show('map'); });
+    click('btn-menu', () => this.openMenu());
+    click('btn-ticket', () => this.onTicket());
+    click('demo-banner', () => this.stopDemo(true));
+    $('btn-confirm').addEventListener('click', () => this.onConfirm());
+    $('scrim').addEventListener('click', () => { if (!this.modalLocked) this.closeLayer(); });
+    $('board').addEventListener('click', (e) => {
+      const el = e.target.closest('.cell');
+      if (el) this.onCell(+el.dataset.r, +el.dataset.c);
     });
-    if (this.telemetryEvents.length > 300) this.telemetryEvents.shift();
+    window.addEventListener('resize', () => { if (this.state) this.renderWindSide(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.closeLayer(); });
   }
 
-  _calcStars(lv, score) {
-    if (typeof score !== 'number' || score < lv.target) return 0;
-    if (score >= lv.maxFoundScore) return 3;
-    if (score >= lv.target + 2 || lv.target === lv.maxFoundScore) return 2;
-    return 1;
+  show(name) {
+    for (const s of ['home', 'map', 'play']) $(`screen-${s}`).hidden = s !== name;
+    this.closeLayer();
+    if (name === 'map') this.renderMap();
+    if (name === 'home') $('btn-home-sound').textContent = sound.sfxEnabled ? '🔊' : '🔈';
   }
 
-  showScreen(screenName) {
-    this.currentScreen = screenName;
-    document.getElementById('screen-title').hidden = screenName !== 'title';
-    document.getElementById('screen-map').hidden = screenName !== 'map';
-    document.getElementById('screen-play').hidden = screenName !== 'play';
+  toggleSfx() {
+    this.save.sfx = sound.toggleSfx();
+    this.persist();
+    $('btn-home-sound').textContent = sound.sfxEnabled ? '🔊' : '🔈';
+  }
 
-    if (screenName === 'title') {
-      this.vfx.stop();
-      this._renderTitleButtonState();
-    } else if (screenName === 'map') {
-      this.vfx.stop();
-      this._renderMapScreen();
-    } else if (screenName === 'play') {
-      if (!this.state) {
-        this.startLevel(this.currentLevelIndex, true);
-      } else {
-        this.renderPlayScreen();
-      }
-      requestAnimationFrame(() => {
-        this.vfx.resize();
-        this.vfx.start();
-      });
+  renderHomeArt() {
+    $('home-line').innerHTML = `
+      <svg class="rope" viewBox="0 0 280 40" preserveAspectRatio="none"><path d="M0 4 Q140 34 280 4" stroke="#b9a58a" stroke-width="2.5" fill="none"/></svg>
+      <div class="hang">${garmentHtml('L', 1, { drops: false })}</div>
+      <div class="hang">${garmentHtml('H', 2, { drops: false })}</div>
+      <div class="hang">${garmentHtml('L', 1, { drops: false })}</div>`;
+  }
+
+  /* ---------------- 地图 ---------------- */
+  renderMap() {
+    const total = Object.values(this.save.stars).reduce((a, b) => a + b, 0);
+    $('star-total').innerHTML = `⭐ ${total}`;
+    $('map-list').innerHTML = CHAPTERS.map((ch) => {
+      const nodes = LEVELS.map((lv, i) => ({ lv, i })).filter(({ lv }) => lv.stage === ch.stage).map(({ lv, i }) => {
+        const locked = i > this.save.unlocked;
+        const next = i === this.save.unlocked && !this.save.best[lv.id];
+        const st = this.save.stars[lv.id] || 0;
+        const stars = [0, 1, 2].map((k) => `<span class="${k < st ? 'on' : ''}">★</span>`).join('');
+        return `<button class="node ${locked ? 'is-locked' : ''} ${next ? 'is-next' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
+          <b>${locked ? '🔒' : levelLabel(lv)}</b>${locked ? '' : `<span class="stars">${stars}</span>`}</button>`;
+      }).join('');
+      return `<div class="chapter"><h3>${ch.name}</h3><p>${ch.desc}</p><div class="node-grid">${nodes}</div></div>`;
+    }).join('');
+    $('map-list').querySelectorAll('.node:not(.is-locked)').forEach((n) =>
+      n.addEventListener('click', () => { safe(() => sound.playUiClick()); this.startLevel(+n.dataset.i); }));
+  }
+
+  /* ---------------- 开局 ---------------- */
+  startLevel(index) {
+    this.stopDemo();
+    this.levelIndex = index;
+    this.level = LEVELS[index];
+    this.state = createInitialState(this.level);
+    this.mode = 'idle';
+    this.sel = this.target = null;
+    this.busy = false;
+    this.show('play');
+    $('screen-play').classList.toggle('is-guided', isTutorial(this.level));
+    $('play-title').textContent = `${levelName(this.level)} · ${shortTitle(this.level)}`;
+    this.render();
+    if (this.level.id === 'L1' && !this.save.sawL1) {
+      this.save.sawL1 = true;
+      this.persist();
+      this.openHowto();
     }
   }
 
-  _renderTitleButtonState() {
-    const btn = document.getElementById('btn-title-continue');
-    if (!btn) return;
-    const clearedCount = this.levels.filter(
-      (lv) => (this.bestScores[lv.id] ?? -1) >= lv.target
-    ).length;
-    if (clearedCount > 0) {
-      const lv = this.levels[this.currentLevelIndex];
-      btn.textContent = `☀ 继续晒衣（${lv.title.split('·')[0].trim()} · 已通 ${clearedCount}/15）`;
-    } else {
-      btn.textContent = '☀ 开始晒衣之旅（从 30 秒新手引导开始）';
-    }
+  get guided() { return isTutorial(this.level) && this.demoToken === 0; }
+  get guideAction() {
+    if (!this.guided) return null;
+    return this.level.witnessActions[this.state.actionLog.length] || null;
   }
+  get currentType() { return this.state.queue[this.state.placedCount]; }
+  get playing() { return this.state.status === 'playing' && this.state.placedCount < this.state.queue.length; }
 
-  _bindEvents() {
-    // Title Screen
-    document.getElementById('btn-title-continue')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.startLevel(this.currentLevelIndex, !this.state || this.state.status !== 'playing');
-      this.showScreen('play');
-    });
-
-    document.getElementById('btn-title-levels')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.showScreen('map');
-    });
-
-    document.getElementById('btn-title-rules')?.addEventListener('click', () => {
-      sound.playUiClick();
-      document.getElementById('modal-handbook')?.removeAttribute('hidden');
-    });
-
-    // Map Screen
-    document.getElementById('btn-map-back')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.showScreen('title');
-    });
-
-    document.getElementById('btn-map-rules')?.addEventListener('click', () => {
-      sound.playUiClick();
-      document.getElementById('modal-handbook')?.removeAttribute('hidden');
-    });
-
-    // Play HUD
-    document.getElementById('btn-play-to-map')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this._stopReplayTimer();
-      this.showScreen('map');
-    });
-
-    document.getElementById('btn-play-hint')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.hintStage = (this.hintStage + 1) % 3;
-      this._logEvent('toggle_hint', { hintStage: this.hintStage });
-      this.renderPlayScreen();
-    });
-
-    document.getElementById('btn-play-witness')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.startWitnessReplay();
-    });
-
-    document.getElementById('btn-play-bgm')?.addEventListener('click', (e) => {
-      const on = sound.toggleBgm();
-      e.currentTarget.textContent = on ? '🎐 庭院音:开' : '🎐 庭院音:关';
-    });
-
-    document.getElementById('btn-play-sfx')?.addEventListener('click', (e) => {
-      const on = sound.toggleSfx();
-      e.currentTarget.textContent = on ? '🔊' : '🔇';
-    });
-
-    document.getElementById('btn-play-restart')?.addEventListener('click', () => {
-      sound.playUiClick();
-      const lv = this.levels[this.currentLevelIndex];
-      this.retryCounts[lv.id] = (this.retryCounts[lv.id] || 0) + 1;
-      this._logEvent('manual_restart', { prevScore: this.state?.score || 0 });
-      this.startLevel(this.currentLevelIndex, true);
-    });
-
-    // Dock Action Buttons
-    document.getElementById('btn-confirm-hang')?.addEventListener('click', () => {
-      this.confirmAction();
-    });
-
-    document.getElementById('btn-cancel-preview')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.cancelCountThisRun += 1;
-      this._logEvent('cancel_preview');
-      this.interactionMode = 'place';
-      this.previewCell = null;
-      this.moveSource = null;
-      this.moveDest = null;
-      this.renderPlayScreen();
-    });
-
-    document.getElementById('btn-use-ticket')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this.toggleMoveTicketMode();
-    });
-
-    document.getElementById('btn-open-recap')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this._renderRecapModal();
-      document.getElementById('modal-recap')?.removeAttribute('hidden');
-    });
-
-    // Replay Controls
-    document.getElementById('btn-replay-prev')?.addEventListener('click', () => this.stepReplay(-1));
-    document.getElementById('btn-replay-next')?.addEventListener('click', () => this.stepReplay(1));
-    document.getElementById('btn-replay-auto')?.addEventListener('click', () => this.toggleReplayAuto());
-    document.getElementById('btn-replay-close')?.addEventListener('click', () => {
-      sound.playUiClick();
-      this._stopReplayTimer();
-      this.interactionMode = 'place';
-      this.replayData = null;
-      this.renderPlayScreen();
-    });
-
-    // Modals Close & Endgame Actions
-    document.getElementById('btn-close-handbook')?.addEventListener('click', () => {
-      document.getElementById('modal-handbook')?.setAttribute('hidden', '');
-    });
-
-    document.getElementById('btn-close-recap')?.addEventListener('click', () => {
-      document.getElementById('modal-recap')?.setAttribute('hidden', '');
-    });
-
-    document.getElementById('btn-export-logs')?.addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(this.telemetryEvents, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `jie-feng-shai-yi-logs-${Date.now()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    document.getElementById('btn-endgame-next')?.addEventListener('click', () => {
-      sound.playUiClick();
-      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
-      const nextIdx = (this.currentLevelIndex + 1) % this.levels.length;
-      this.startLevel(nextIdx, true);
-    });
-
-    document.getElementById('btn-endgame-retry')?.addEventListener('click', () => {
-      sound.playUiClick();
-      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
-      this.startLevel(this.currentLevelIndex, true);
-    });
-
-    document.getElementById('btn-endgame-witness')?.addEventListener('click', () => {
-      sound.playUiClick();
-      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
-      this.startWitnessReplay();
-    });
-
-    document.getElementById('btn-endgame-close')?.addEventListener('click', () => {
-      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
-    });
-  }
-
-  _renderMapScreen() {
-    const root = document.getElementById('map-chapters-root');
-    const summaryEl = document.getElementById('map-progress-summary');
-    if (!root) return;
-
-    const clearedTotal = this.levels.filter(
-      (lv) => (this.bestScores[lv.id] ?? -1) >= lv.target
-    ).length;
-    const totalStars = this.levels.reduce(
-      (acc, lv) => acc + this._calcStars(lv, this.bestScores[lv.id]),
-      0
-    );
-    if (summaryEl) {
-      summaryEl.textContent = `已达标 ${clearedTotal} / ${this.levels.length} 关 · 累计获得 ⭐ ${totalStars} / ${this.levels.length * 3}`;
-    }
-
-    const stages = ['新手教学', '早期标准', '中期进阶', '后期挑战'];
-    root.innerHTML = '';
-
-    stages.forEach((stageName) => {
-      const groupLevels = this.levels
-        .map((lv, idx) => ({ lv, idx }))
-        .filter((item) => item.lv.stage === stageName);
-
-      const sec = document.createElement('div');
-      sec.className = 'chapter-section';
-      sec.innerHTML = `
-        <div class="chapter-header">
-          <h3 class="chapter-title">${stageName}</h3>
-          <span style="font-size:0.78rem;color:var(--ink-body);">${groupLevels.length} 个庭院关卡</span>
-        </div>
-        <div class="level-cards-grid"></div>
-      `;
-
-      const grid = sec.querySelector('.level-cards-grid');
-      groupLevels.forEach(({ lv, idx }) => {
-        const best = this.bestScores[lv.id];
-        const stars = this._calcStars(lv, best);
-        const starStr =
-          stars > 0 ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '☆☆☆';
-        const windsStr = lv.winds.map((w) => `${WIND_META[w].short}${WIND_META[w].arrow}`).join(' ');
-
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.className = `map-level-card ${stars > 0 ? 'is-cleared' : ''}`;
-        card.innerHTML = `
-          <div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-              <span style="font-weight:900;font-size:0.9rem;color:var(--wood-dark);">${lv.title}</span>
-              <span class="map-stars">${starStr}</span>
-            </div>
-            <p style="margin:4px 0 0;font-size:0.74rem;color:var(--ink-body);line-height:1.4;">${lv.subtitle}</p>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.74rem;font-weight:700;padding-top:6px;border-top:1px dashed rgba(124,79,43,0.2);">
-            <span style="color:var(--wind-sky-deep);">风序: ${windsStr}</span>
-            <span>${typeof best === 'number' ? `最高 ${best}/${lv.target}分` : `目标 ${lv.target}分`}</span>
-          </div>
-        `;
-        card.addEventListener('click', () => {
-          sound.playUiClick();
-          this.startLevel(idx, true);
-          this.showScreen('play');
-        });
-        grid.appendChild(card);
-      });
-
-      root.appendChild(sec);
-    });
-  }
-
-  startLevel(index, resetState = true) {
-    this._stopReplayTimer();
-    this.currentLevelIndex = index;
-    const lv = this.levels[index];
-    if (resetState || !this.state || this.state.levelId !== lv.id) {
-      this.state = createInitialState(lv);
-      this.activeDurationMs = 0;
-      this.lastResumeTs = performance.now();
-      this.cancelCountThisRun = 0;
-      this._logEvent('level_start', { target: lv.target });
-    }
-    this.interactionMode = 'place';
-    this.previewCell = null;
-    this.moveSource = null;
-    this.moveDest = null;
-    this.hintStage = lv.stage === '新手教学' ? 1 : 0; // Automatically show friendly guide bubble on Tutorial levels
-    this.replayData = null;
-    this._saveProgress();
-    this.renderPlayScreen();
-  }
-
-  onTileClick(r, c) {
-    if (this.interactionMode === 'replay' || this.state.status !== 'playing') return;
+  /* ---------------- 交互 ---------------- */
+  onCell(r, c) {
+    if (this.busy || this.demoActive || !this.playing) return;
     const cell = this.state.grid[r][c];
+    const g = this.guideAction;
 
-    if (this.interactionMode === 'move') {
-      if (cell !== null) {
-        this.moveSource = { r, c };
-        this.moveDest = null;
-        sound.playPreviewTap();
-        this.renderPlayScreen();
-      } else if (this.moveSource) {
-        if (this.moveDest && this.moveDest.r === r && this.moveDest.c === c) {
-          this.confirmAction();
-          return;
-        }
-        this.moveDest = { r, c };
-        sound.playPreviewTap();
-        this.renderPlayScreen();
+    if (g) {
+      if (g.type === 'place' && g.at[0] === r && g.at[1] === c) this.commit({ type: 'place', at: [r, c] });
+      return;
+    }
+
+    if (this.mode === 'pickMove' || this.mode === 'movePreview') {
+      if (cell) {
+        if (this.sel && this.sel.r === r && this.sel.c === c) return this.resetMode();
+        this.sel = { r, c }; this.target = null; this.mode = 'pickMove';
+        safe(() => sound.playPreviewTap());
+        return this.render();
       }
-      return;
+      if (!this.sel) return;
+      if (this.mode === 'movePreview' && this.target.r === r && this.target.c === c) return this.onConfirm();
+      this.target = { r, c }; this.mode = 'movePreview';
+      safe(() => sound.playPreviewTap());
+      return this.render();
     }
 
-    // Placement mode
-    if (cell !== null) {
-      // One-tap shortcut into Move Ticket mode if player taps an existing garment
-      if (this.state.tickets > 0 && countEmptyCells(this.state.grid) > 0) {
-        this.interactionMode = 'move';
-        this.previewCell = null;
-        this.moveSource = { r, c };
-        this.moveDest = null;
-        sound.playPreviewTap();
-        this.renderPlayScreen();
-      }
-      return;
+    if (cell) {
+      if (this.state.tickets <= 0) return this.toast('挪位券用完啦', '已挂的衣服不能再挪');
+      this.mode = 'pickMove'; this.sel = { r, c }; this.target = null;
+      safe(() => sound.playPreviewTap());
+      return this.render();
     }
 
-    // Tap empty cell once to preview wind & blocking; tap the same cell again (or click Hang button) to confirm!
-    if (this.previewCell && this.previewCell.r === r && this.previewCell.c === c) {
-      this.confirmAction();
-      return;
-    }
-
-    this.previewCell = { r, c };
-    sound.playPreviewTap();
-    this._logEvent('preview_place', { at: [r, c] });
-    this.renderPlayScreen();
+    if (this.mode === 'preview' && this.sel.r === r && this.sel.c === c) return this.onConfirm();
+    this.mode = 'preview'; this.sel = { r, c };
+    safe(() => sound.playPreviewTap());
+    this.render();
   }
 
-  toggleMoveTicketMode() {
-    if (this.interactionMode === 'replay' || this.state.status !== 'playing') return;
-    if (this.interactionMode === 'move') {
-      this.interactionMode = 'place';
-      this.moveSource = null;
-      this.moveDest = null;
-    } else if (this.state.tickets > 0 && countEmptyCells(this.state.grid) > 0) {
-      this.interactionMode = 'move';
-      this.previewCell = null;
-      this.moveSource = null;
-      this.moveDest = null;
-    }
-    this.renderPlayScreen();
+  onTicket() {
+    if (this.busy || this.demoActive || !this.playing || this.guided) return;
+    if (this.mode === 'pickMove' || this.mode === 'movePreview') return this.resetMode();
+    if (this.state.tickets <= 0) return this.toast('挪位券用完啦');
+    const hasGarment = this.state.grid.some((row) => row.some(Boolean));
+    if (!hasGarment) return this.toast('先挂几件衣服', '才能挪动它们');
+    this.mode = 'pickMove'; this.sel = null; this.target = null;
+    this.render();
   }
 
-  confirmAction() {
-    if (this.interactionMode === 'replay' || this.state.status !== 'playing') return;
-
-    // 1. Move Ticket execution
-    if (this.interactionMode === 'move') {
-      if (!this.moveSource || !this.moveDest) return;
-      const { state: nextState } = applyMoveAction(
-        this.state,
-        this.moveSource.r,
-        this.moveSource.c,
-        this.moveDest.r,
-        this.moveDest.c
-      );
-      sound.playMoveTicket();
-      this._logEvent('confirm_move', {
-        from: [this.moveSource.r, this.moveSource.c],
-        to: [this.moveDest.r, this.moveDest.c],
-      });
-      this.state = nextState;
-      this.interactionMode = 'place';
-      this.moveSource = null;
-      this.moveDest = null;
-      this._saveProgress();
-      this.renderPlayScreen();
-      return;
-    }
-
-    // 2. Full Board Skip
-    if (isBoardFull(this.state.grid)) {
-      const { state: nextState, gustTriggered } = applyPlaceOrSkipAction(this.state, {
-        type: 'skip',
-      });
-      this._logEvent('confirm_full_skip');
-      this._applyPostPlacementEffects(nextState, gustTriggered, false);
-      return;
-    }
-
-    // 3. Normal Placement
-    if (!this.previewCell) return;
-    const itemType = this.state.queue[this.state.placedCount];
-    const coords = [this.previewCell.r, this.previewCell.c];
-    const { state: nextState, gustTriggered } = applyPlaceOrSkipAction(this.state, {
-      type: 'place',
-      at: coords,
-    });
-    this._logEvent('confirm_place', { at: coords, itemType });
-    this._applyPostPlacementEffects(nextState, gustTriggered, itemType === 'H');
+  onConfirm() {
+    if (this.busy || !this.playing) return;
+    if (isBoardFull(this.state.grid) && this.mode === 'idle') return this.commit({ type: 'skip' });
+    if (this.mode === 'preview') return this.commit({ type: 'place', at: [this.sel.r, this.sel.c] });
+    if (this.mode === 'movePreview') return this.commitMove();
   }
 
-  _applyPostPlacementEffects(nextState, gustTriggered, isHeavy) {
-    this.previewCell = null;
-    this.state = nextState;
-    this.justBillowedCells.clear();
+  resetMode() { this.mode = 'idle'; this.sel = this.target = null; this.render(); }
 
-    if (gustTriggered) {
-      sound.playWindGust(gustTriggered.collectedRecords.length, gustTriggered.hitRecords.length);
-      this.vfx.triggerWindGustVfx(gustTriggered.windDir);
+  commitMove() {
+    const { r, c } = this.sel; const t = this.target;
+    try {
+      const res = applyMoveAction(this.state, r, c, t.r, t.c);
+      this.state = res.state;
+      safe(() => sound.playMoveTicket());
+    } catch (e) { return this.toast(e.message); }
+    this.mode = 'idle'; this.sel = this.target = null;
+    this.render();
+  }
 
-      // Spawn particle sparkles & floating score popups on every hit cell!
-      gustTriggered.hitRecords.forEach((rec) => {
-        const key = `${rec.r},${rec.c}`;
-        this.justBillowedCells.add(key);
-        const tileEl = document.getElementById(`tile-${rec.r}-${rec.c}`);
-        if (tileEl) {
-          this.vfx.spawnCellBurst(tileEl, rec.points, rec.collected);
-        }
-      });
+  async commit(action) {
+    if (this.busy) return;
+    this.busy = true;
+    const prev = this.state;
+    let res;
+    try { res = applyPlaceOrSkipAction(prev, action); } catch (e) { this.busy = false; return this.toast(e.message); }
+    this.mode = 'idle'; this.sel = this.target = null;
+    const step = prev.actionLog.length;
+
+    if (action.type === 'place') safe(() => sound.playHangConfirm(this.currentType === 'H'));
+
+    if (res.gustTriggered) {
+      // 先展示“挂上后、起风前”的画面
+      const before = action.type === 'place'
+        ? previewActionForecast(prev, { type: 'place', r: action.at[0], c: action.at[1] }).tempGrid
+        : prev.grid;
+      this.state = { ...res.state, grid: before, score: prev.score, gustIndex: prev.gustIndex };
+      this.render({ quiet: true });
+      await sleep(380);
+      await this.playGust(res.gustTriggered);
+      this.state = res.state;
+      this.render();
+      this.bumpScore();
+      const tTexts = TUTORIAL_TOAST[this.level.id];
+      const gi = res.gustTriggered.gustNumber - 1;
+      const gain = res.gustTriggered.gustScoreGain;
+      if (tTexts && tTexts[gi] && this.demoToken === 0) this.toast(tTexts[gi]);
+      else this.toast(gain > 0 ? `${res.gustTriggered.windName} +${gain}` : `${res.gustTriggered.windName}吹过`, gain > 0 ? `收下 ${res.gustTriggered.collectedRecords.length} 件衣服` : '这阵风没吹干衣服');
     } else {
-      sound.playHangConfirm(isHeavy);
+      this.state = res.state;
+      this.render();
     }
-
-    this._saveProgress();
-    this.renderPlayScreen();
+    void step;
+    this.busy = false;
 
     if (this.state.status !== 'playing') {
-      const lv = this.levels[this.currentLevelIndex];
-      const won = this.state.status === 'won';
-      if (this.state.score > (this.bestScores[lv.id] ?? -1)) {
-        this.bestScores[lv.id] = this.state.score;
-        this._saveProgress();
-      }
-      this._logEvent('endgame', {
-        won,
-        score: this.state.score,
-        target: this.state.target,
-      });
-
-      setTimeout(() => {
-        sound.playEndgame(won);
-        this._openEndgameModal();
-      }, 620);
+      await sleep(900);
+      if (this.demoActive) this.demoActive = false, ($('demo-banner').hidden = true);
+      this.finish();
     }
   }
 
-  _openEndgameModal() {
-    const lv = this.levels[this.currentLevelIndex];
-    const won = this.state.status === 'won';
-    const stars = this._calcStars(lv, this.state.score);
-
-    const starsEl = document.getElementById('endgame-stars');
-    const headEl = document.getElementById('endgame-heading');
-    const scoreEl = document.getElementById('endgame-score-line');
-    const subEl = document.getElementById('endgame-sub-stats');
-    const diagEl = document.getElementById('endgame-diagnosis-box');
-
-    if (starsEl) {
-      starsEl.textContent = won ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '🌧️';
+  async playGust(g) {
+    const layer = $('gust-layer');
+    layer.className = `gust-layer gust-${g.windDir}`;
+    const horizontal = g.windDir === 'W' || g.windDir === 'E';
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      for (let k = 0; k < 2; k++) {
+        const pos = `${(i * 33.3) + 16.6 + (k ? 6 : -6)}%`;
+        const delay = (k * 0.18 + i * 0.06).toFixed(2);
+        html += `<div class="streak" style="${horizontal ? 'top' : 'left'}:${pos};animation-delay:${delay}s"></div>`;
+      }
     }
-    if (headEl) {
-      headEl.textContent = won
-        ? stars === 3
-          ? '清风满院 · 完美三星收衣！'
-          : '阳光暖晒 · 顺利达标通关！'
-        : '差一点点 · 还有湿衣留在竹架上';
-    }
-    if (scoreEl) {
-      scoreEl.textContent = `${this.state.score} / ${this.state.target} 分`;
-      scoreEl.style.color = won ? 'var(--emerald-deep)' : 'var(--crimson-warn)';
-    }
-    if (subEl) {
-      subEl.textContent = `收走厚袄 ${this.state.collectedH} 件 (+${this.state.collectedH * 5}) · 收走薄衫 ${this.state.collectedL} 件 (+${this.state.collectedL * 2}) · 四阵得分 [${this.state.gustSummaries.map((g) => g.gustScoreGain).join(' → ')}]`;
-    }
-
-    if (diagEl) {
-      const rem = diagnoseRemainingGarments(this.state);
-      if (rem.length === 0) {
-        diagEl.innerHTML = `<strong>✨ 全场清空！</strong> 所有挂上的衣物都借风吹干收走了，没有任何遮挡浪费。`;
+    layer.innerHTML = html;
+    safe(() => sound.playWindGust(g.collectedRecords.length, g.hitRecords.length));
+    await sleep(320);
+    const cellEl = (r, c) => $('board').querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    for (const h of g.hitRecords) {
+      const el = cellEl(h.r, h.c);
+      if (!el) continue;
+      if (h.collected) {
+        el.classList.add('anim-fly', 'fx-collect');
+        const f = document.createElement('div');
+        f.className = 'float-pts'; f.textContent = `+${h.points}`;
+        el.appendChild(f);
       } else {
-        diagEl.innerHTML = `
-          <strong>🔍 留场未干衣物复盘（留场得 0 分）：</strong>
-          <ul style="margin:4px 0 0;padding-left:18px;">
-            ${rem
-              .map(
-                (r) =>
-                  `<li><strong>${r.coordLabel} ${r.type === 'H' ? '厚袄' : '薄衫'}(剩湿${r.wetness})</strong>：${r.reasonText}</li>`
-              )
-              .join('')}
-          </ul>
-        `;
+        el.classList.add('anim-shake', 'fx-hit');
+        const drops = el.querySelector('.drops .drop:last-child');
+        if (drops) drops.classList.add('is-dry');
       }
     }
-
-    document.getElementById('modal-endgame')?.removeAttribute('hidden');
+    await sleep(900);
+    layer.innerHTML = '';
   }
 
-  // Witness Replay System
-  startWitnessReplay() {
-    this._stopReplayTimer();
-    const lv = this.levels[this.currentLevelIndex];
-    const { snapshots } = replayActionSequence(lv, lv.witnessActions);
-    this.interactionMode = 'replay';
-    this.replayData = {
-      title: `达标演示（${lv.witnessScore} 分走法）`,
-      snapshots,
-      index: 0,
-      timer: null,
-    };
-    this.renderPlayScreen();
-    this.toggleReplayAuto(); // Immediately play smoothly so player sees the magic!
+  bumpScore() {
+    const b = $('score-now');
+    b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
   }
 
-  stepReplay(delta) {
-    if (!this.replayData) return;
-    const nextIdx = Math.max(
-      0,
-      Math.min(this.replayData.snapshots.length - 1, this.replayData.index + delta)
-    );
-    this.replayData.index = nextIdx;
-    const snap = this.replayData.snapshots[nextIdx];
-    this.justBillowedCells.clear();
-
-    if (snap.gust && delta > 0) {
-      sound.playWindGust(snap.gust.collectedRecords.length, snap.gust.hitRecords.length);
-      this.vfx.triggerWindGustVfx(snap.gust.windDir);
-      snap.gust.hitRecords.forEach((rec) => {
-        this.justBillowedCells.add(`${rec.r},${rec.c}`);
-        const tileEl = document.getElementById(`tile-${rec.r}-${rec.c}`);
-        if (tileEl) this.vfx.spawnCellBurst(tileEl, rec.points, rec.collected);
-      });
-    } else if (delta > 0) {
-      sound.playHangConfirm(false);
-    }
-    this.renderPlayScreen();
+  /* ---------------- 渲染 ---------------- */
+  render(opts = {}) {
+    this.renderScore();
+    this.renderWindRow();
+    this.renderBoard(opts);
+    this.renderWindSide();
+    this.renderTray();
+    this.renderCoach();
   }
 
-  toggleReplayAuto() {
-    if (!this.replayData) return;
-    if (this.replayData.timer) {
-      this._stopReplayTimer();
-      this.renderPlayScreen();
-      return;
-    }
-    if (this.replayData.index >= this.replayData.snapshots.length - 1) {
-      this.replayData.index = 0;
-    }
-    this.replayData.timer = setInterval(() => {
-      if (!this.replayData || this.replayData.index >= this.replayData.snapshots.length - 1) {
-        this._stopReplayTimer();
-        this.renderPlayScreen();
-        return;
+  renderScore() {
+    const { score, target } = this.state;
+    $('score-now').textContent = score;
+    $('score-target').textContent = target;
+    const max = Math.max(target * 1.25, this.level.maxFoundScore || target);
+    $('progress-fill').style.width = `${Math.min(100, (score / max) * 100)}%`;
+    const goal = $('progress-goal');
+    goal.style.left = `${(target / max) * 100}%`;
+    goal.textContent = score >= target ? '✓' : '🏁';
+    $('progress').classList.toggle('is-done', score >= target);
+  }
+
+  renderWindRow() {
+    const s = this.state;
+    const remain = s.gustEvery - (s.placedCount % s.gustEvery);
+    $('wind-row').innerHTML = s.winds.map((w, i) => {
+      const m = WIND_META[w];
+      if (i === s.gustIndex && this.playing) {
+        return `<div class="wind-dot is-now"><span class="arrow">${m.arrow}</span>${m.name}<small>· 再挂 ${remain} 件</small></div>`;
       }
-      this.stepReplay(1);
-    }, 880);
-    this.renderPlayScreen();
+      return `<div class="wind-dot ${i < s.gustIndex ? 'is-done' : ''}" title="${m.name}">${m.arrow}</div>`;
+    }).join('<div class="wind-sep"></div>');
   }
 
-  _stopReplayTimer() {
-    if (this.replayData?.timer) {
-      clearInterval(this.replayData.timer);
-      this.replayData.timer = null;
-    }
+  forecast() {
+    const s = this.state;
+    if (!this.playing) return null;
+    if (this.mode === 'preview') return previewActionForecast(s, { type: 'place', r: this.sel.r, c: this.sel.c });
+    if (this.mode === 'movePreview') return previewActionForecast(s, { type: 'move', fromR: this.sel.r, fromC: this.sel.c, toR: this.target.r, toC: this.target.c });
+    return null;
   }
 
-  // Main Play Screen Render
-  renderPlayScreen() {
-    const lv = this.levels[this.currentLevelIndex];
-    const activeState =
-      this.interactionMode === 'replay' && this.replayData
-        ? this.replayData.snapshots[this.replayData.index].state
-        : this.state;
-
-    // Sync ambient wind drift direction in VFX engine
-    const upcomingWind = activeState.winds[activeState.gustIndex] || 'W';
-    this.vfx.setAmbientWindDirection(upcomingWind);
-
-    // 1. HUD
-    document.getElementById('hud-level-title').textContent = lv.title;
-    document.getElementById('hud-level-sub').textContent = lv.subtitle;
-    document.getElementById('hud-score-text').textContent = `${activeState.score} / ${activeState.target}`;
-    const pct = Math.min(100, Math.round((activeState.score / Math.max(1, activeState.target)) * 100));
-    document.getElementById('hud-score-bar').style.width = `${pct}%`;
-
-    // 2. Weather Forecast Ribbon
-    const ribbonEl = document.getElementById('weather-ribbon');
-    ribbonEl.style.gridTemplateColumns = `repeat(${activeState.winds.length}, 1fr)`;
-    ribbonEl.innerHTML = activeState.winds
-      .map((wDir, idx) => {
-        const meta = WIND_META[wDir];
-        const isCurrent = idx === activeState.gustIndex && activeState.status === 'playing';
-        const isPast = idx < activeState.gustIndex;
-        const sum = activeState.gustSummaries[idx];
-        const stepsLeft =
-          isCurrent
-            ? `差 ${activeState.gustEvery - (activeState.placedCount % activeState.gustEvery)} 件吹风`
-            : sum
-            ? `收 +${sum.gustScoreGain} 分`
-            : `第 ${(idx + 1) * activeState.gustEvery} 件后`;
-
-        return `
-          <div class="weather-badge ${isCurrent ? 'is-upcoming' : ''} ${isPast ? 'is-past' : ''}">
-            <div class="weather-wind-icon">${meta.arrow}</div>
-            <div class="weather-meta">
-              <span class="weather-meta-top">第 ${idx + 1} 阵 · ${stepsLeft}</span>
-              <span class="weather-meta-main">${meta.name}</span>
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-
-    // 3. Guide / Two-Level Hint Speech Bubble
-    const bubbleEl = document.getElementById('guide-bubble');
-    if (this.hintStage === 0) {
-      bubbleEl.hidden = true;
-    } else {
-      bubbleEl.hidden = false;
-      if (lv.stage === '新手教学' && this.hintStage === 1 && activeState.placedCount === 0) {
-        bubbleEl.innerHTML = `<strong>🌱 庭院引导：</strong>${lv.focus}（再点一次上方“💡提示”可查看实时盘面诊断）`;
-      } else {
-        const hints = generateTwoLevelHints(activeState);
-        bubbleEl.innerHTML =
-          this.hintStage === 1
-            ? `${hints.level1} <span style="color:var(--wind-sky-deep);font-weight:700;">（再点“💡提示”看行列建议）</span>`
-            : `<div>${hints.level1}</div><div style="margin-top:4px;padding-top:4px;border-top:1px dashed rgba(26,163,200,0.35);">${hints.level2}</div>`;
-      }
-    }
-
-    // 4. Courtyard 3x3 Tiles + Edge Wind Stream Indicators
-    let previewAction = null;
-    if (this.interactionMode === 'place' && this.previewCell) {
-      previewAction = { type: 'place', r: this.previewCell.r, c: this.previewCell.c };
-    } else if (this.interactionMode === 'move' && this.moveSource && this.moveDest) {
-      previewAction = {
-        type: 'move',
-        fromR: this.moveSource.r,
-        fromC: this.moveSource.c,
-        toR: this.moveDest.r,
-        toC: this.moveDest.c,
-      };
-    }
-
-    const { tempGrid, currentWind, forecast } = previewActionForecast(activeState, previewAction);
-
-    ['N', 'S', 'W', 'E'].forEach((dir) => {
-      const edgeEl = document.getElementById(`edge-${dir.toLowerCase()}`);
-      if (!edgeEl) return;
-      const isActiveSide = currentWind === dir && activeState.status === 'playing';
-      const arrow = WIND_META[dir].arrow;
-      edgeEl.innerHTML = [0, 1, 2]
-        .map((lineIdx) => {
-          if (!isActiveSide) return `<span class="wind-lane-pill"></span>`;
-          const hasTarget = !forecast.emptyScanlines.includes(lineIdx);
-          return `<span class="wind-lane-pill ${
-            hasTarget ? 'is-active-lane' : 'is-empty-lane'
-          }">${arrow}</span>`;
-        })
-        .join('');
-    });
-
-    const gridEl = document.getElementById('courtyard-grid');
-    gridEl.innerHTML = '';
-
+  renderBoard() {
+    const s = this.state;
+    const fc = this.forecast();
+    const grid = fc ? fc.tempGrid : s.grid;
+    const map = fc ? fc.forecast.cellMap : {};
+    const g = this.guideAction;
+    let html = '';
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
-        const cellData = tempGrid[r][c];
-        const fInfo = forecast.cellMap[`${r},${c}`];
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = `tile-${r}-${c}`;
-        btn.className = 'courtyard-tile';
-        btn.setAttribute('aria-label', `第 ${r + 1} 行第 ${c + 1} 列`);
-
-        const isPreviewSpot =
-          (this.previewCell && this.previewCell.r === r && this.previewCell.c === c) ||
-          (this.moveDest && this.moveDest.r === r && this.moveDest.c === c);
-
-        if (isPreviewSpot) btn.classList.add('is-preview-cell');
-        if (this.moveSource && this.moveSource.r === r && this.moveSource.c === c) {
-          btn.classList.add('is-move-origin');
+        const item = grid[r][c];
+        const cls = ['cell', item ? 'has-item' : 'is-empty'];
+        let inner = '';
+        if (item) inner = garmentHtml(item.type, item.wetness, { ghost: !!item.isPreview && this.mode === 'preview' });
+        const f = map[`${r},${c}`];
+        if (f) {
+          cls.push(`fx-${f.status}`);
+          const txt = f.status === 'collect' ? `+${f.detail.pointsGained}` : f.status === 'hit' ? '-1💧' : '挡住';
+          inner += `<span class="tag ${f.status}">${txt}</span>`;
         }
-
-        if (fInfo && activeState.status === 'playing') {
-          if (fInfo.status === 'collect') btn.classList.add('forecast-collect');
-          else if (fInfo.status === 'hit') btn.classList.add('forecast-hit');
+        if (g) {
+          if (g.type === 'place' && g.at[0] === r && g.at[1] === c) { cls.push('is-target'); inner += HAND; } else cls.push('is-locked');
         }
-
-        let tileHtml = '';
-        if (cellData) {
-          const drops = '💧'.repeat(cellData.wetness);
-          const billowClass = this.justBillowedCells.has(`${r},${c}`) ? 'billow-gust' : '';
-          let pillHtml = '';
-          if (fInfo && activeState.status === 'playing') {
-            if (fInfo.status === 'collect') {
-              pillHtml = `<span class="tile-forecast-pill pill-collect">🌬 本阵吹干 +${fInfo.detail.pointsGained}分</span>`;
-            } else if (fInfo.status === 'hit') {
-              pillHtml = `<span class="tile-forecast-pill pill-hit">🌬 迎风减湿 ${cellData.wetness}→${fInfo.detail.newWetness}</span>`;
-            } else if (fInfo.status === 'blocked') {
-              const b = fInfo.detail.blockedBy;
-              pillHtml = `<span class="tile-forecast-pill pill-blocked">🛡 被前排挡风</span>`;
-            }
-          }
-
-          tileHtml = `
-            <span class="wetness-droplets-badge">${drops} ${cellData.wetness}</span>
-            <div class="garment-sprite-wrap ${cellData.type === 'H' ? 'is-heavy' : ''} ${
-            cellData.isPreview ? 'is-ghost-preview' : ''
-          } ${billowClass}">
-              ${renderIllustratedGarmentSvg(cellData.type, cellData.wetness)}
-            </div>
-            ${pillHtml}
-          `;
-        }
-
-        btn.innerHTML = tileHtml;
-        btn.addEventListener('click', () => this.onTileClick(r, c));
-        gridEl.appendChild(btn);
+        if ((this.mode === 'pickMove' || this.mode === 'movePreview') && this.sel) {
+          if (this.sel.r === r && this.sel.c === c && this.mode === 'pickMove') cls.push('is-selected');
+          if (!item && this.mode === 'pickMove') cls.push('is-drop');
+        } else if (this.mode === 'pickMove' && item) cls.push('is-movable');
+        if (this.mode === 'preview' && this.sel.r === r && this.sel.c === c) cls.push('is-selected');
+        if (this.mode === 'movePreview' && this.target.r === r && this.target.c === c) cls.push('is-selected');
+        html += `<div class="${cls.join(' ')}" data-r="${r}" data-c="${c}">${inner}</div>`;
       }
     }
-
-    // 5. Action Dock & Laundry Basket Queue
-    this._renderDockAndQueue(lv, activeState);
+    $('board').innerHTML = html;
+    this.renderHint(fc);
   }
 
-  _renderDockAndQueue(lv, activeState) {
-    const normalBtns = document.getElementById('dock-normal-btns');
-    const replayBtns = document.getElementById('dock-replay-btns');
-    const promptEl = document.getElementById('dock-prompt-text');
-    const confirmBtn = document.getElementById('btn-confirm-hang');
-    const cancelBtn = document.getElementById('btn-cancel-preview');
-    const ticketBtn = document.getElementById('btn-use-ticket');
-
-    if (this.interactionMode === 'replay' && this.replayData) {
-      normalBtns.hidden = true;
-      replayBtns.hidden = false;
-      const snap = this.replayData.snapshots[this.replayData.index];
-      promptEl.innerHTML = `🎬 <strong>${this.replayData.title}</strong> · 第 ${this.replayData.index}/${this.replayData.snapshots.length - 1} 步：${snap.label}`;
-      document.getElementById('btn-replay-auto').textContent = this.replayData.timer
-        ? '⏸ 暂停'
-        : '▶ 自动播放';
-    } else {
-      normalBtns.hidden = false;
-      replayBtns.hidden = true;
-
-      if (activeState.status !== 'playing') {
-        promptEl.innerHTML =
-          activeState.status === 'won'
-            ? `🎉 <strong>本关已达标（${activeState.score} 分）！</strong> 可点击“重开”挑战更高星级或前往下一关。`
-            : `⛅ <strong>本局结束（${activeState.score}/${activeState.target} 分）</strong> · 点“🎬 演示”可学习过关走法。`;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '本局已结束';
-        cancelBtn.disabled = true;
-        ticketBtn.disabled = true;
-      } else if (this.interactionMode === 'move') {
-        if (!this.moveSource) {
-          promptEl.innerHTML = `🎫 <strong>挪位模式</strong>：请点击竹架上要移动的一件衣物（不消耗步数）`;
-          confirmBtn.disabled = true;
-        } else if (!this.moveDest) {
-          promptEl.innerHTML = `🎫 已选 <strong>(${this.moveSource.r + 1},${this.moveSource.c + 1})</strong>，请点击目标空竹竿预览`;
-          confirmBtn.disabled = true;
-        } else {
-          promptEl.innerHTML = `🎫 再次点击目标格或按右侧按钮，确认移至 <strong>(${this.moveDest.r + 1},${this.moveDest.c + 1})</strong>`;
-          confirmBtn.disabled = false;
-        }
-        confirmBtn.textContent = '🎫 确认挪位 (-1券)';
-        cancelBtn.disabled = false;
-        ticketBtn.textContent = '退出挪位';
-        ticketBtn.disabled = false;
-      } else if (isBoardFull(activeState.grid)) {
-        promptEl.innerHTML = `⚠️ <strong>9 格竹架已满</strong>：本件放不下，确认跳过（得 0 分，仍计 1 次挂衣以招来阵风）`;
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = '跳过本件';
-        cancelBtn.disabled = true;
-      } else {
-        const curType = activeState.queue[activeState.placedCount];
-        const curName = curType === 'H' ? '🧥 绞花厚袄 (+5分·需2风)' : '👕 亚麻薄衫 (+2分·需1风)';
-        if (this.previewCell) {
-          const stepsLeft =
-            activeState.gustEvery - (activeState.placedCount % activeState.gustEvery);
-          const windMeta = WIND_META[activeState.winds[activeState.gustIndex]];
-          promptEl.innerHTML = `📌 已预览挂在 <strong>(${this.previewCell.r + 1},${this.previewCell.c + 1})</strong> · 再次点击该格或按右侧按钮挂好`;
-          confirmBtn.disabled = false;
-          confirmBtn.textContent =
-            stepsLeft === 1 ? `📌 挂好并吹${windMeta.name}!` : '📌 挂上竹竿';
-          cancelBtn.disabled = false;
-        } else {
-          promptEl.innerHTML = `🧺 待挂第 <strong>${activeState.placedCount + 1}/${activeState.queue.length}</strong> 件：<strong>${curName}</strong>`;
-          confirmBtn.disabled = true;
-          confirmBtn.textContent = '点空格预览 → 挂好';
-          cancelBtn.disabled = true;
-        }
-        const canUseTicket =
-          activeState.tickets > 0 &&
-          countEmptyCells(activeState.grid) > 0 &&
-          countEmptyCells(activeState.grid) < 9;
-        ticketBtn.disabled = !canUseTicket;
-        ticketBtn.textContent = `🎫 挪位券 (${activeState.tickets})`;
-      }
-    }
-
-    // Basket Queue Strip
-    const basketEl = document.getElementById('basket-queue-strip');
-    const gustEvery = activeState.gustEvery;
-    const rounds = Math.ceil(activeState.queue.length / gustEvery);
-    basketEl.style.gridTemplateColumns = rounds <= 2 ? `repeat(${rounds}, 1fr)` : '';
-
-    let html = '';
-    for (let b = 0; b < rounds; b++) {
-      const start = b * gustEvery;
-      const end = Math.min(activeState.queue.length, start + gustEvery);
-      const wDir = activeState.winds[b];
-      const wMeta = WIND_META[wDir];
-      const isCurRound = b === activeState.gustIndex && activeState.status === 'playing';
-
-      let itemsHtml = '';
-      for (let i = start; i < end; i++) {
-        const t = activeState.queue[i];
-        const done = i < activeState.placedCount;
-        const now = i === activeState.placedCount && activeState.status === 'playing';
-        itemsHtml += `
-          <div class="mini-garment-card type-${t} ${done ? 'is-done' : ''} ${now ? 'is-now' : ''}">
-            <span>${t === 'H' ? '🧥厚袄' : '👕薄衫'}</span>
-            <span style="font-size:0.6rem;opacity:0.8;">${t === 'H' ? '2💧 +5' : '1💧 +2'}</span>
-          </div>
-        `;
-      }
-
-      html += `
-        <div class="basket-round-box ${isCurRound ? 'is-current-round' : ''}">
-          <div class="basket-round-head">
-            <span>第 ${b + 1} 轮衣篮</span>
-            <span style="color:var(--wind-sky-deep);">${wMeta ? `吹${wMeta.name}${wMeta.arrow}` : ''}</span>
-          </div>
-          <div class="basket-mini-items">${itemsHtml}</div>
-        </div>
-      `;
-    }
-    basketEl.innerHTML = html;
-  }
-
-  _renderRecapModal() {
-    const box = document.getElementById('recap-gust-list');
-    if (!box) return;
+  renderWindSide() {
     const s = this.state;
-    let html = `<div><strong>当前用时：</strong>${this._fgSec()} 秒 ｜ <strong>取消预览：</strong>${this.cancelCountThisRun} 次 ｜ <strong>重开次数：</strong>${this.retryCounts[s.levelId] || 0} 次</div>`;
-
-    if (s.gustSummaries.length === 0) {
-      html += `<div style="color:var(--ink-body);margin-top:6px;">本局尚未触发阵风结算。</div>`;
-    } else {
-      s.gustSummaries.forEach((g) => {
-        const hits =
-          g.hitRecords.length > 0
-            ? g.hitRecords
-                .map(
-                  (h) =>
-                    `(${h.r + 1},${h.c + 1})${h.type === 'H' ? '厚袄' : '薄衫'}[${h.beforeWet}→${h.afterWet}${
-                      h.collected ? ` 收+${h.points}` : ''
-                    }]`
-                )
-                .join('、')
-            : '无受风衣物';
-        const blocked =
-          g.blockedRecords.length > 0
-            ? g.blockedRecords
-                .map((b) => `(${b.r + 1},${b.c + 1})被(${b.blockedBy.r + 1},${b.blockedBy.c + 1})挡住`)
-                .join('、')
-            : '无遮挡';
-        html += `
-          <div style="padding-top:8px;border-top:1px dashed rgba(124,79,43,0.25);">
-            <strong>第 ${g.gustNumber} 阵 · ${g.windName}${g.windArrow}（本阵 +${g.gustScoreGain} 分 / 累计 ${g.totalScoreAfter} 分）</strong><br/>
-            <span>迎风命中：${hits}</span><br/>
-            <span style="color:var(--ink-muted);">前排遮挡：${blocked}</span>
-          </div>
-        `;
-      });
+    const side = $('wind-side');
+    const w = s.winds[s.gustIndex];
+    if (!w) { side.innerHTML = ''; side.className = 'wind-side'; return; }
+    side.className = `wind-side wind-${w}`;
+    const B = $('board').clientWidth || 300;
+    const pad = 10, gap = 8, cell = (B - pad * 2 - gap * 2) / 3, off = 34;
+    const fc = this.forecast();
+    const empty = fc ? fc.forecast.emptyScanlines : null;
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      const center = off + pad + i * (cell + gap) + cell / 2 - 14;
+      let pos;
+      if (w === 'W') pos = `left:3px;top:${center}px`;
+      if (w === 'E') pos = `right:3px;top:${center}px`;
+      if (w === 'N') pos = `top:3px;left:${center}px`;
+      if (w === 'S') pos = `bottom:3px;left:${center}px`;
+      const dim = empty && empty.includes(i) ? ' is-dim' : '';
+      html += `<div class="lane-arrow${dim}" style="${pos}"><span>${WIND_META[w].arrow}</span></div>`;
     }
-    box.innerHTML = html;
+    side.innerHTML = html;
+  }
+
+  renderHint(fc) {
+    const s = this.state; const el = $('hint-line');
+    if (!this.playing) { el.innerHTML = s.status === 'won' ? '<span class="g">过关啦！</span>' : ''; return; }
+    if (this.guided) { el.innerHTML = ''; return; }
+    const wind = WIND_META[s.winds[s.gustIndex]];
+    if (fc) {
+      const hits = fc.forecast.hitCells;
+      const gain = hits.reduce((a, h) => a + h.pointsGained, 0);
+      const key = this.mode === 'preview' ? `${this.sel.r},${this.sel.c}` : `${this.target.r},${this.target.c}`;
+      const me = fc.forecast.cellMap[key];
+      let msg = '';
+      if (me?.status === 'blocked') msg = '这里会被前面的衣服<b>挡住</b>，风吹不到';
+      else if (me?.status === 'hit') msg = '能吹到，但厚衣还要<b>再吹一次</b>';
+      else if (me?.status === 'collect') msg = `下阵${wind.name}能把它<span class="g">吹干</span>`;
+      el.innerHTML = `${msg}${gain ? ` · 预计 <span class="g">+${gain}</span>` : ''}${this.mode === 'preview' ? '<br><small>再点一次或按「挂在这里」</small>' : ''}`;
+      return;
+    }
+    if (this.mode === 'pickMove') { el.innerHTML = this.sel ? '选一个<b>空格</b>，把衣服挪过去（不占步数）' : '点一件<b>已挂的衣服</b>来挪动'; return; }
+    if (isBoardFull(s.grid)) { el.innerHTML = '晒场满了，这件只能<b>跳过</b>（不得分）'; return; }
+    el.innerHTML = `<span class="w">${wind.arrow} ${wind.name}</span> ${wind.desc}，只吹到每${wind.axis === 'row' ? '行' : '列'}<b>第一件</b>`;
+  }
+
+  renderTray() {
+    const s = this.state;
+    const card = $('current-card');
+    const full = isBoardFull(s.grid);
+    if (!this.playing) {
+      card.className = 'current-card is-empty';
+      card.innerHTML = '衣篮空了';
+    } else {
+      const t = this.currentType; const m = GARMENT_META[t];
+      card.className = `current-card${full ? ' is-skip' : ''}`;
+      card.innerHTML = `<div class="label">${full ? '放不下了' : '现在挂'}</div>${garmentHtml(t, m.initialWetness)}<div class="name">${m.name}</div><div class="pts">吹干 +${m.points} 分</div>`;
+    }
+    // 队列：后续衣物 + 风的位置
+    let q = '';
+    for (let i = s.placedCount; i < s.queue.length; i++) {
+      if (i > s.placedCount) q += `<div class="q-item">${garmentHtml(s.queue[i], 0, { drops: false })}</div>`;
+      if ((i + 1) % s.gustEvery === 0) {
+        const w = s.winds[(i + 1) / s.gustEvery - 1];
+        if (w) q += `<div class="q-wind" title="${WIND_META[w].name}">${WIND_META[w].arrow}</div>`;
+      }
+    }
+    $('queue').innerHTML = q || '<span class="q-empty">这是最后一件</span>';
+
+    const tk = $('btn-ticket');
+    const moving = this.mode === 'pickMove' || this.mode === 'movePreview';
+    tk.innerHTML = moving ? '✕ 取消挪位' : `↔︎ 挪位 ×${s.tickets}`;
+    tk.classList.toggle('is-active', moving);
+    tk.disabled = !this.playing || this.guided || (!moving && s.tickets <= 0);
+    tk.hidden = (this.level.tickets ?? 2) === 0;
+
+    const btn = $('btn-confirm');
+    if (this.playing && this.mode === 'preview') { btn.hidden = false; btn.textContent = '挂在这里'; }
+    else if (this.playing && this.mode === 'movePreview') { btn.hidden = false; btn.textContent = '挪到这里'; }
+    else if (this.playing && full && this.mode === 'idle') { btn.hidden = false; btn.textContent = '跳过这件'; }
+    else btn.hidden = true;
+  }
+
+  renderCoach() {
+    const el = $('coach');
+    const lines = COACH[this.level.id];
+    const step = this.state.actionLog.length;
+    if (this.guided && lines && lines[step] && this.playing) {
+      el.hidden = false; el.innerHTML = lines[step];
+    } else if (this.level.id === 'L1' && step === 0 && this.mode === 'idle' && this.demoToken === 0) {
+      el.hidden = false; el.innerHTML = '先<b>点一下</b>格子预览风的效果，再点一次挂上';
+    } else el.hidden = true;
+  }
+
+  /* ---------------- 提示 ---------------- */
+  toast(text, sub = '') {
+    const t = $('toast');
+    t.innerHTML = `${text}${sub ? `<small>${sub}</small>` : ''}`;
+    t.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
+  }
+
+  /* ---------------- 弹层 ---------------- */
+  openLayer(html, { center = false, locked = false } = {}) {
+    $('layer').hidden = false;
+    $('layer').classList.toggle('center', center);
+    $('sheet').innerHTML = html;
+    this.modalLocked = locked;
+  }
+  closeLayer() { $('layer').hidden = true; this.modalLocked = false; }
+
+  openMenu() {
+    if (this.busy) return;
+    const items = [
+      ['restart', '↻', '重新开始'],
+      ['howto', '?', '怎么玩'],
+      ['demo', '▶', '看一遍示范'],
+      ['sfx', '♪', '音效', sound.sfxEnabled ? '开' : '关'],
+      ['bgm', '☁', '庭院风声', sound.bgmEnabled ? '开' : '关'],
+      ['map', '▦', '返回关卡'],
+    ];
+    this.openLayer(`<h2>${levelName(this.level)}</h2><p class="sub">${shortTitle(this.level)} · 目标 ${this.level.target} 分</p>
+      <div class="menu-list">${items.map(([k, ic, t, v]) => `<button class="menu-item" data-k="${k}"><span class="ic">${ic}</span>${t}${v ? `<span class="val">${v}</span>` : ''}</button>`).join('')}</div>`);
+    $('sheet').querySelectorAll('.menu-item').forEach((b) => b.addEventListener('click', () => {
+      safe(() => sound.playUiClick());
+      const k = b.dataset.k;
+      if (k === 'restart') { this.closeLayer(); this.startLevel(this.levelIndex); }
+      if (k === 'howto') this.openHowto();
+      if (k === 'demo') { this.closeLayer(); this.runDemo(); }
+      if (k === 'sfx') { this.toggleSfx(); this.openMenu(); }
+      if (k === 'bgm') { sound.toggleBgm(); this.openMenu(); }
+      if (k === 'map') { this.stopDemo(); this.show('map'); }
+    }));
+  }
+
+  openHowto(page = 0) {
+    const mini = (cells, arrows = true) => `<div class="mini-board">${arrows ? '<div class="mini-arrows"><span>→</span><span>→</span><span>→</span></div>' : ''}${cells.map((c) => {
+      if (!c) return '<div class="mc"></div>';
+      const [t, cls, tag] = c;
+      return `<div class="mc ${cls || ''}">${garmentHtml(t, null, { drops: false })}${tag ? `<span class="mt ${tag[0]}">${tag.slice(1)}</span>` : ''}</div>`;
+    }).join('')}</div>`;
+    const cards = [
+      {
+        art: `<div class="howto-row"><div><div class="big-g">${garmentHtml('L', 1, { drops: false })}</div></div><span style="font-size:24px;color:#a7b1ba">→</span>${mini([null, null, null, ['L', 'hl'], null, null, null, null, null], false)}</div>`,
+        t: '把衣服挂上晒场', p: '点空格挂上衣服，<br>每挂 <b>3 件</b>就会吹来一阵风。',
+      },
+      {
+        art: mini([['L', 'hl', 'g+2'], ['L', 'dim', 'x挡'], null, null, null, ['L', 'hl', 'g+2'], ['H', ''], ['L', 'dim', 'x挡'], null]),
+        t: '风只吹第一件', p: '风沿箭头吹过每一行，<br>只吹到<b>最先碰到</b>的那件，后面的被挡住。',
+      },
+      {
+        art: `<div class="howto-row"><div><div class="big-g">${garmentHtml('L', 1)}</div><div class="lbl">薄衣<small>吹 1 次 · +2</small></div></div><div><div class="big-g">${garmentHtml('H', 2)}</div><div class="lbl">厚衣<small>吹 2 次 · +5</small></div></div></div>`,
+        t: '吹干就能收', p: '每吹一次少 <b>1 滴水</b>，水滴没了就收下得分。',
+      },
+      {
+        art: `<div class="howto-row" style="flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:700">↔︎ 挪位券 ×2</div><div style="font-size:30px">🏁</div></div>`,
+        t: '挪位券 · 达标过关', p: '点已挂的衣服可挪到空格（不占步数）。<br>挂完所有衣服时<b>达到目标分</b>就过关！',
+      },
+    ];
+    const c = cards[page];
+    const last = page === cards.length - 1;
+    this.openLayer(`<div class="howto-card"><div class="howto-art">${c.art}</div><h3>${c.t}</h3><p>${c.p}</p></div>
+      <div class="dots">${cards.map((_, i) => `<i class="${i === page ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="result-actions">${page > 0 ? '<button class="btn btn-soft" id="hw-prev">上一步</button>' : ''}<button class="btn btn-primary" id="hw-next">${last ? '知道了' : '下一步'}</button></div>`, { center: true });
+    $('hw-next').onclick = () => { safe(() => sound.playUiClick()); last ? this.closeLayer() : this.openHowto(page + 1); };
+    if (page > 0) $('hw-prev').onclick = () => this.openHowto(page - 1);
+  }
+
+  finish() {
+    const lv = this.level; const s = this.state;
+    const stars = starsFor(lv, s.score);
+    const won = s.status === 'won';
+    safe(() => sound.playEndgame(won));
+    if (won && this.demoToken === 0) {
+      this.save.best[lv.id] = Math.max(this.save.best[lv.id] || 0, s.score);
+      this.save.stars[lv.id] = Math.max(this.save.stars[lv.id] || 0, stars);
+      this.save.unlocked = Math.max(this.save.unlocked, Math.min(this.levelIndex + 1, LEVELS.length - 1));
+      this.persist();
+    }
+    const hasNext = this.levelIndex < LEVELS.length - 1;
+    let meta = won ? `目标 ${lv.target} 分 · 达成！` : `还差 ${lv.target - s.score} 分 · 试试别的位置`;
+    if (won && lv.id === 'T3') meta = '教学完成！正式关卡每挂 3 件起一次风';
+    if (this.demoToken !== 0) meta = '这是一种过关方法，换你来试试';
+    this.openLayer(`<h2>${won ? (stars === 3 ? '完美晾晒！' : '晒干啦！') : '差一点点'}</h2>
+      <div class="result-stars">${[0, 1, 2].map((k) => STAR(k < stars)).join('')}</div>
+      <div class="result-score">${s.score}</div><div class="result-meta">${meta}</div>
+      <div class="result-actions"><button class="btn btn-soft" id="rs-retry">${won ? '再玩一次' : '重试'}</button>${won && hasNext ? '<button class="btn btn-primary" id="rs-next">下一关</button>' : (!won ? '<button class="btn btn-primary" id="rs-demo">看示范</button>' : '')}</div>`,
+      { center: true, locked: true });
+    const wasDemo = this.demoToken !== 0;
+    this.demoToken = 0;
+    $('rs-retry').onclick = () => this.startLevel(this.levelIndex);
+    if ($('rs-next')) $('rs-next').onclick = () => this.startLevel(wasDemo ? this.levelIndex : this.levelIndex + 1);
+    if ($('rs-demo')) $('rs-demo').onclick = () => { this.closeLayer(); this.runDemo(); };
+  }
+
+  /* ---------------- 示范 ---------------- */
+  async runDemo() {
+    this.startLevel(this.levelIndex);
+    const token = ++this.demoToken + Date.now();
+    this.demoToken = token;
+    this.demoActive = true;
+    $('demo-banner').hidden = false;
+    this.render();
+    await sleep(700);
+    for (const a of this.level.witnessActions) {
+      if (this.demoToken !== token) return;
+      if (a.type === 'move') {
+        this.mode = 'movePreview'; this.sel = { r: a.from[0], c: a.from[1] }; this.target = { r: a.to[0], c: a.to[1] };
+        this.render(); await sleep(800);
+        if (this.demoToken !== token) return;
+        this.commitMove();
+      } else if (a.type === 'place') {
+        this.mode = 'preview'; this.sel = { r: a.at[0], c: a.at[1] };
+        this.render(); await sleep(750);
+        if (this.demoToken !== token) return;
+        await this.commit(a);
+      } else {
+        await this.commit(a);
+      }
+      await sleep(450);
+    }
+  }
+
+  stopDemo(restart = false) {
+    if (!this.demoActive && this.demoToken === 0) return;
+    this.demoActive = false;
+    this.demoToken = 0;
+    $('demo-banner').hidden = true;
+    if (restart && this.level) this.startLevel(this.levelIndex);
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  window.gameApp = new CommercialJggoGame();
-});
+window.addEventListener('DOMContentLoaded', () => { window.game = new Game(); });

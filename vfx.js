@@ -40,7 +40,7 @@ export class CourtyardVfxEngine {
     this.height = rect.height;
     this.canvas.width = Math.floor(this.width * this.dpr);
     this.canvas.height = Math.floor(this.height * this.dpr);
-    this.ctx.setTransform(this.dpr, 0, this.dpr, 0, 0);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   }
 
   _initMotes() {
