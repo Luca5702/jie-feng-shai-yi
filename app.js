@@ -13,354 +13,518 @@ import {
 } from './engine.js';
 import { LEVELS } from './levels.js';
 import { sound } from './audio.js';
+import { CourtyardVfxEngine } from './vfx.js';
 
-const STORAGE_KEY = 'jggo_v0_1_session';
+const STORAGE_KEY = 'jggo_commercial_v1';
 
-// Distinct Dual-Encoded Garment SVGs (Silhouette + Pattern, not relying on color alone)
-function getGarmentSvg(type) {
+/**
+ * Hand-crafted Rich Illustrated Garment Sprites with Wooden Clothespins,
+ * Fabric Folds, Pockets, Knit Cable Patterns, and Soft Highlights.
+ */
+function renderIllustratedGarmentSvg(type, wetness) {
+  const isDamp2 = wetness >= 2;
   if (type === 'L') {
-    // Light Garment (L): Breezy short-sleeve linen T-shirt silhouette
-    return `<svg class="garment-svg" viewBox="0 0 48 42" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M15 6 L8 12 L12 19 L16 16 L16 36 L32 36 L32 16 L36 19 L40 12 L33 6 C30 9.5 18 9.5 15 6 Z" fill="currentColor" fill-opacity="0.14"/>
-      <path d="M20 15 H28" stroke-dasharray="2 2"/>
-    </svg>`;
+    // Crisp Sunlit White-Cyan Linen Shirt with Wooden Clothespins
+    return `
+      <svg class="garment-illustration" viewBox="0 0 80 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="linenBody" x1="40" y1="12" x2="40" y2="68" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#FFFFFF"/>
+            <stop offset="65%" stop-color="#E6F7FC"/>
+            <stop offset="100%" stop-color="#BCE7F5"/>
+          </linearGradient>
+        </defs>
+        <!-- Hanging Shadow -->
+        <path d="M23 16 L10 26 L17 37 L24 33 L22 65 Q40 68 58 65 L56 33 L63 37 L70 26 L57 16 Z" fill="rgba(18,82,108,0.16)" transform="translate(1,3)"/>
+        <!-- Shirt Silhouette -->
+        <path d="M24 14 L9 25 L16 37 L24 32 L22 64 Q40 67 58 64 L56 32 L64 37 L71 25 L56 14 C50 19 30 19 24 14 Z"
+              fill="url(#linenBody)" stroke="#16698A" stroke-width="2.6" stroke-linejoin="round"/>
+        <!-- Collar & Placket -->
+        <path d="M28 15 L36 23 L40 19 L44 23 L52 15" stroke="#16698A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="#D5F1FA"/>
+        <line x1="40" y1="20" x2="40" y2="42" stroke="#53A8C6" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Pocket & Gentle Breeze Folds -->
+        <rect x="45" y="30" width="8" height="9" rx="2" stroke="#3D95B5" stroke-width="1.6" fill="rgba(255,255,255,0.6)"/>
+        <path d="M30 46 Q33 54 29 61" stroke="#7AC3DC" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M50 48 Q53 55 51 61" stroke="#7AC3DC" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Two Wooden Clothespins on Top Shoulders -->
+        <rect x="24" y="5" width="5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
+        <rect x="51" y="5" width="5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
+      </svg>
+    `;
   }
-  // Heavy Garment (H): Thick quilted winter coat / sweater with collar & double hem
-  return `<svg class="garment-svg" viewBox="0 0 48 42" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M14 5 L5 14 L9 24 L14 20 L14 37 L34 37 L34 20 L39 24 L43 14 L34 5 L28 9 L24 6 L20 9 Z" fill="currentColor" fill-opacity="0.22"/>
-    <line x1="24" y1="9" x2="24" y2="37"/>
-    <line x1="16" y1="26" x2="32" y2="26"/>
-  </svg>`;
+
+  // Cozy Terracotta Cable-Knit Thick Coat / Sweater (H)
+  // Visual feedback: darker damp hem when wetness === 2, brighter warm amber when wetness === 1 (half-dry!)
+  const bodyTop = isDamp2 ? '#F6B089' : '#FFD09E';
+  const bodyBot = isDamp2 ? '#C95B2B' : '#E87A3D';
+  const strokeCol = isDamp2 ? '#6E260E' : '#853312';
+
+  return `
+    <svg class="garment-illustration" viewBox="0 0 80 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="woolBody_${wetness}" x1="40" y1="12" x2="40" y2="68" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="${bodyTop}"/>
+          <stop offset="100%" stop-color="${bodyBot}"/>
+        </linearGradient>
+      </defs>
+      <!-- Drop Shadow -->
+      <path d="M22 15 L6 29 L13 44 L22 38 L21 66 L59 66 L58 38 L67 44 L74 29 L58 15 Z" fill="rgba(75,24,6,0.22)" transform="translate(1,3)"/>
+      <!-- Heavy Sweater Silhouette -->
+      <path d="M23 13 L6 28 L13 43 L22 37 L21 65 Q40 68 59 65 L58 37 L67 43 L74 28 L57 13 C50 18 30 18 23 13 Z"
+            fill="url(#woolBody_${wetness})" stroke="${strokeCol}" stroke-width="2.8" stroke-linejoin="round"/>
+      <!-- Thick Ribbed Turtleneck Collar -->
+      <rect x="28" y="9" width="24" height="9" rx="4.5" fill="#FCE3C8" stroke="${strokeCol}" stroke-width="2.4"/>
+      <!-- Cable-Knit Center Pattern & Ribbed Hem -->
+      <path d="M36 22 Q40 27 36 32 Q40 37 36 42 Q40 47 36 52" stroke="#FFEAD2" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+      <path d="M44 22 Q40 27 44 32 Q40 37 44 42 Q40 47 44 52" stroke="#FFEAD2" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+      <line x1="22" y1="58" x2="58" y2="58" stroke="${strokeCol}" stroke-width="2.2"/>
+      ${isDamp2 ? `<path d="M22 58 L58 58 L59 65 Q40 68 21 65 Z" fill="rgba(26,115,158,0.32)"/>` : ''}
+      <!-- Two Sturdy Wooden Clothespins -->
+      <rect x="21" y="4" width="5.5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
+      <rect x="53.5" y="4" width="5.5" height="13" rx="2" fill="#E39D45" stroke="#6E3F14" stroke-width="1.8"/>
+    </svg>
+  `;
 }
 
-class JggoGameApp {
+class CommercialJggoGame {
   constructor() {
     this.levels = LEVELS;
-    this.currentLevelIndex = 3; // Default to L1 (Section 08 Standard Walkthrough Level), tutorials T1-T3 at 0..2
+    this.currentScreen = 'title'; // 'title' | 'map' | 'play'
+    this.currentLevelIndex = 0;   // Start fresh players at T1 (15s onboarding), or resume saved level
     this.state = null;
 
-    // UI Interaction Mode:
-    // - 'place': waiting to select empty cell for current queue garment
-    // - 'move': selecting occupied cell (from) and empty cell (to) for Move Ticket
-    // - 'replay': stepping through witness or completed run snapshots
-    this.interactionMode = 'place';
-    this.previewCell = null; // { r, c } for placement
-    this.moveSource = null;  // { r, c } for move ticket
-    this.moveDest = null;    // { r, c } for move ticket
-    this.hintStage = 0;      // 0: hidden, 1: Level 1 hint, 2: Level 1 + Level 2 hint
-    this.isAnimatingGust = false;
+    this.interactionMode = 'place'; // 'place' | 'move' | 'replay'
+    this.previewCell = null;
+    this.moveSource = null;
+    this.moveDest = null;
+    this.hintStage = 0;
+    this.replayData = null;
+    this.justBillowedCells = new Set();
 
-    // Replay state
-    this.replayData = null; // { title, snapshots, index, timer }
-
-    // Persistence & Telemetry (Section 11 & 13)
+    // Progress & Telemetry
     this.bestScores = {};
-    this.lastRunSummaries = {};
     this.retryCounts = {};
     this.telemetryEvents = [];
     this.cancelCountThisRun = 0;
     this.activeDurationMs = 0;
-    this.lastResumeTimestamp = null;
+    this.lastResumeTs = performance.now();
 
-    this._loadSession();
-    this._setupLifecycleListeners();
-    this._bindStaticElements();
-    this.loadLevel(this.currentLevelIndex, false);
+    this._loadProgress();
+
+    // Initialize VFX Canvas
+    const canvasEl = document.getElementById('courtyard-vfx-canvas');
+    this.vfx = new CourtyardVfxEngine(canvasEl);
+
+    this._bindEvents();
+    this._renderTitleButtonState();
+    this.showScreen('title');
   }
 
-  _loadSession() {
+  _loadProgress() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === '0.1') {
-        this.bestScores = parsed.bestScores || {};
-        this.lastRunSummaries = parsed.lastRunSummaries || {};
-        this.retryCounts = parsed.retryCounts || {};
-        if (typeof parsed.currentLevelIndex === 'number' && this.levels[parsed.currentLevelIndex]) {
-          this.currentLevelIndex = parsed.currentLevelIndex;
-        }
-        if (parsed.savedState && parsed.savedState.levelId === this.levels[this.currentLevelIndex].id) {
-          this.state = parsed.savedState;
-        }
+      const data = JSON.parse(raw);
+      this.bestScores = data.bestScores || {};
+      this.retryCounts = data.retryCounts || {};
+      if (typeof data.currentLevelIndex === 'number' && this.levels[data.currentLevelIndex]) {
+        this.currentLevelIndex = data.currentLevelIndex;
       }
-    } catch (e) {
-      // Ignore storage errors
-    }
+      if (data.savedState && data.savedState.levelId === this.levels[this.currentLevelIndex].id) {
+        this.state = data.savedState;
+      }
+    } catch (e) {}
   }
 
-  _saveSession() {
+  _saveProgress() {
     try {
-      const payload = {
-        version: '0.1',
-        currentLevelIndex: this.currentLevelIndex,
-        bestScores: this.bestScores,
-        lastRunSummaries: this.lastRunSummaries,
-        retryCounts: this.retryCounts,
-        savedState: this.state,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch (e) {
-      // Ignore storage errors
-    }
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          version: '1.0',
+          currentLevelIndex: this.currentLevelIndex,
+          bestScores: this.bestScores,
+          retryCounts: this.retryCounts,
+          savedState: this.state,
+        })
+      );
+    } catch (e) {}
   }
 
-  _setupLifecycleListeners() {
-    this.lastResumeTimestamp = performance.now();
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        if (this.lastResumeTimestamp !== null && this.state?.status === 'playing') {
-          this.activeDurationMs += performance.now() - this.lastResumeTimestamp;
-        }
-        this.lastResumeTimestamp = null;
-        this._stopReplayTimer();
-        this._recordTelemetry('visibility_pause');
-      } else {
-        this.lastResumeTimestamp = performance.now();
-        this._recordTelemetry('visibility_resume');
-      }
-    });
+  _fgSec() {
+    const extra =
+      this.currentScreen === 'play' && this.state?.status === 'playing'
+        ? performance.now() - this.lastResumeTs
+        : 0;
+    return Math.round((this.activeDurationMs + extra) / 100) / 10;
   }
 
-  _getForegroundSeconds() {
-    let total = this.activeDurationMs;
-    if (this.lastResumeTimestamp !== null && this.state?.status === 'playing') {
-      total += performance.now() - this.lastResumeTimestamp;
-    }
-    return Math.round(total / 100) / 10;
-  }
-
-  _recordTelemetry(eventType, detail = {}) {
+  _logEvent(eventType, payload = {}) {
     const lv = this.levels[this.currentLevelIndex];
     this.telemetryEvents.push({
       ts: new Date().toISOString(),
-      levelId: lv?.id || 'unknown',
-      version: 'v0.1',
-      fgSec: this._getForegroundSeconds(),
+      levelId: lv?.id,
+      fgSec: this._fgSec(),
       eventType,
-      ...detail,
+      ...payload,
     });
-    if (this.telemetryEvents.length > 300) {
-      this.telemetryEvents.shift();
+    if (this.telemetryEvents.length > 300) this.telemetryEvents.shift();
+  }
+
+  _calcStars(lv, score) {
+    if (typeof score !== 'number' || score < lv.target) return 0;
+    if (score >= lv.maxFoundScore) return 3;
+    if (score >= lv.target + 2 || lv.target === lv.maxFoundScore) return 2;
+    return 1;
+  }
+
+  showScreen(screenName) {
+    this.currentScreen = screenName;
+    document.getElementById('screen-title').hidden = screenName !== 'title';
+    document.getElementById('screen-map').hidden = screenName !== 'map';
+    document.getElementById('screen-play').hidden = screenName !== 'play';
+
+    if (screenName === 'title') {
+      this.vfx.stop();
+      this._renderTitleButtonState();
+    } else if (screenName === 'map') {
+      this.vfx.stop();
+      this._renderMapScreen();
+    } else if (screenName === 'play') {
+      if (!this.state) {
+        this.startLevel(this.currentLevelIndex, true);
+      } else {
+        this.renderPlayScreen();
+      }
+      requestAnimationFrame(() => {
+        this.vfx.resize();
+        this.vfx.start();
+      });
     }
   }
 
-  _bindStaticElements() {
-    // Header buttons
-    document.getElementById('btn-theme-toggle')?.addEventListener('click', () => {
-      const html = document.documentElement;
-      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      html.setAttribute('data-theme', next);
-      const label = document.getElementById('theme-toggle-label');
-      if (label) label.textContent = next === 'dark' ? '日间庭院' : '夜间模式';
+  _renderTitleButtonState() {
+    const btn = document.getElementById('btn-title-continue');
+    if (!btn) return;
+    const clearedCount = this.levels.filter(
+      (lv) => (this.bestScores[lv.id] ?? -1) >= lv.target
+    ).length;
+    if (clearedCount > 0) {
+      const lv = this.levels[this.currentLevelIndex];
+      btn.textContent = `☀ 继续晒衣（${lv.title.split('·')[0].trim()} · 已通 ${clearedCount}/15）`;
+    } else {
+      btn.textContent = '☀ 开始晒衣之旅（从 30 秒新手引导开始）';
+    }
+  }
+
+  _bindEvents() {
+    // Title Screen
+    document.getElementById('btn-title-continue')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.startLevel(this.currentLevelIndex, !this.state || this.state.status !== 'playing');
+      this.showScreen('play');
     });
 
-    document.getElementById('btn-audio-toggle')?.addEventListener('click', () => {
-      const on = sound.toggle();
-      const btn = document.getElementById('btn-audio-toggle');
-      if (btn) btn.textContent = on ? '音效：开' : '音效：关';
+    document.getElementById('btn-title-levels')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.showScreen('map');
     });
 
-    document.getElementById('btn-open-rules')?.addEventListener('click', () => {
-      document.getElementById('modal-rules')?.removeAttribute('hidden');
+    document.getElementById('btn-title-rules')?.addEventListener('click', () => {
+      sound.playUiClick();
+      document.getElementById('modal-handbook')?.removeAttribute('hidden');
     });
 
-    document.getElementById('btn-close-rules')?.addEventListener('click', () => {
-      document.getElementById('modal-rules')?.setAttribute('hidden', '');
+    // Map Screen
+    document.getElementById('btn-map-back')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.showScreen('title');
     });
 
-    document.getElementById('btn-open-telemetry')?.addEventListener('click', () => {
-      this._renderTelemetryModal();
-      document.getElementById('modal-telemetry')?.removeAttribute('hidden');
+    document.getElementById('btn-map-rules')?.addEventListener('click', () => {
+      sound.playUiClick();
+      document.getElementById('modal-handbook')?.removeAttribute('hidden');
     });
 
-    document.getElementById('btn-close-telemetry')?.addEventListener('click', () => {
-      document.getElementById('modal-telemetry')?.setAttribute('hidden', '');
+    // Play HUD
+    document.getElementById('btn-play-to-map')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this._stopReplayTimer();
+      this.showScreen('map');
     });
 
-    document.getElementById('btn-export-telemetry')?.addEventListener('click', () => {
+    document.getElementById('btn-play-hint')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.hintStage = (this.hintStage + 1) % 3;
+      this._logEvent('toggle_hint', { hintStage: this.hintStage });
+      this.renderPlayScreen();
+    });
+
+    document.getElementById('btn-play-witness')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.startWitnessReplay();
+    });
+
+    document.getElementById('btn-play-bgm')?.addEventListener('click', (e) => {
+      const on = sound.toggleBgm();
+      e.currentTarget.textContent = on ? '🎐 庭院音:开' : '🎐 庭院音:关';
+    });
+
+    document.getElementById('btn-play-sfx')?.addEventListener('click', (e) => {
+      const on = sound.toggleSfx();
+      e.currentTarget.textContent = on ? '🔊' : '🔇';
+    });
+
+    document.getElementById('btn-play-restart')?.addEventListener('click', () => {
+      sound.playUiClick();
+      const lv = this.levels[this.currentLevelIndex];
+      this.retryCounts[lv.id] = (this.retryCounts[lv.id] || 0) + 1;
+      this._logEvent('manual_restart', { prevScore: this.state?.score || 0 });
+      this.startLevel(this.currentLevelIndex, true);
+    });
+
+    // Dock Action Buttons
+    document.getElementById('btn-confirm-hang')?.addEventListener('click', () => {
+      this.confirmAction();
+    });
+
+    document.getElementById('btn-cancel-preview')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.cancelCountThisRun += 1;
+      this._logEvent('cancel_preview');
+      this.interactionMode = 'place';
+      this.previewCell = null;
+      this.moveSource = null;
+      this.moveDest = null;
+      this.renderPlayScreen();
+    });
+
+    document.getElementById('btn-use-ticket')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this.toggleMoveTicketMode();
+    });
+
+    document.getElementById('btn-open-recap')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this._renderRecapModal();
+      document.getElementById('modal-recap')?.removeAttribute('hidden');
+    });
+
+    // Replay Controls
+    document.getElementById('btn-replay-prev')?.addEventListener('click', () => this.stepReplay(-1));
+    document.getElementById('btn-replay-next')?.addEventListener('click', () => this.stepReplay(1));
+    document.getElementById('btn-replay-auto')?.addEventListener('click', () => this.toggleReplayAuto());
+    document.getElementById('btn-replay-close')?.addEventListener('click', () => {
+      sound.playUiClick();
+      this._stopReplayTimer();
+      this.interactionMode = 'place';
+      this.replayData = null;
+      this.renderPlayScreen();
+    });
+
+    // Modals Close & Endgame Actions
+    document.getElementById('btn-close-handbook')?.addEventListener('click', () => {
+      document.getElementById('modal-handbook')?.setAttribute('hidden', '');
+    });
+
+    document.getElementById('btn-close-recap')?.addEventListener('click', () => {
+      document.getElementById('modal-recap')?.setAttribute('hidden', '');
+    });
+
+    document.getElementById('btn-export-logs')?.addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(this.telemetryEvents, null, 2)], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `jggo-telemetry-${Date.now()}.json`;
+      a.download = `jie-feng-shai-yi-logs-${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
     });
 
-    // Primary game controls
-    document.getElementById('btn-confirm-action')?.addEventListener('click', () => {
-      this.confirmCurrentAction();
+    document.getElementById('btn-endgame-next')?.addEventListener('click', () => {
+      sound.playUiClick();
+      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
+      const nextIdx = (this.currentLevelIndex + 1) % this.levels.length;
+      this.startLevel(nextIdx, true);
     });
 
-    document.getElementById('btn-cancel-action')?.addEventListener('click', () => {
-      this.cancelCurrentPreview(true);
+    document.getElementById('btn-endgame-retry')?.addEventListener('click', () => {
+      sound.playUiClick();
+      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
+      this.startLevel(this.currentLevelIndex, true);
     });
 
-    document.getElementById('btn-toggle-move')?.addEventListener('click', () => {
-      this.toggleMoveMode();
-    });
-
-    document.getElementById('btn-Restart-level')?.addEventListener('click', () => {
-      this.restartLevel(true);
-    });
-
-    document.getElementById('btn-step-hint')?.addEventListener('click', () => {
-      this.advanceHintStage();
-    });
-
-    document.getElementById('btn-watch-witness')?.addEventListener('click', () => {
+    document.getElementById('btn-endgame-witness')?.addEventListener('click', () => {
+      sound.playUiClick();
+      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
       this.startWitnessReplay();
     });
 
-    // Replay controls
-    document.getElementById('btn-replay-prev')?.addEventListener('click', () => {
-      this.stepReplay(-1);
-    });
-    document.getElementById('btn-replay-next')?.addEventListener('click', () => {
-      this.stepReplay(1);
-    });
-    document.getElementById('btn-replay-auto')?.addEventListener('click', () => {
-      this.toggleReplayAuto();
-    });
-    document.getElementById('btn-replay-exit')?.addEventListener('click', () => {
-      this.exitReplayMode();
+    document.getElementById('btn-endgame-close')?.addEventListener('click', () => {
+      document.getElementById('modal-endgame')?.setAttribute('hidden', '');
     });
   }
 
-  loadLevel(index, forceReset = true) {
+  _renderMapScreen() {
+    const root = document.getElementById('map-chapters-root');
+    const summaryEl = document.getElementById('map-progress-summary');
+    if (!root) return;
+
+    const clearedTotal = this.levels.filter(
+      (lv) => (this.bestScores[lv.id] ?? -1) >= lv.target
+    ).length;
+    const totalStars = this.levels.reduce(
+      (acc, lv) => acc + this._calcStars(lv, this.bestScores[lv.id]),
+      0
+    );
+    if (summaryEl) {
+      summaryEl.textContent = `已达标 ${clearedTotal} / ${this.levels.length} 关 · 累计获得 ⭐ ${totalStars} / ${this.levels.length * 3}`;
+    }
+
+    const stages = ['新手教学', '早期标准', '中期进阶', '后期挑战'];
+    root.innerHTML = '';
+
+    stages.forEach((stageName) => {
+      const groupLevels = this.levels
+        .map((lv, idx) => ({ lv, idx }))
+        .filter((item) => item.lv.stage === stageName);
+
+      const sec = document.createElement('div');
+      sec.className = 'chapter-section';
+      sec.innerHTML = `
+        <div class="chapter-header">
+          <h3 class="chapter-title">${stageName}</h3>
+          <span style="font-size:0.78rem;color:var(--ink-body);">${groupLevels.length} 个庭院关卡</span>
+        </div>
+        <div class="level-cards-grid"></div>
+      `;
+
+      const grid = sec.querySelector('.level-cards-grid');
+      groupLevels.forEach(({ lv, idx }) => {
+        const best = this.bestScores[lv.id];
+        const stars = this._calcStars(lv, best);
+        const starStr =
+          stars > 0 ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '☆☆☆';
+        const windsStr = lv.winds.map((w) => `${WIND_META[w].short}${WIND_META[w].arrow}`).join(' ');
+
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `map-level-card ${stars > 0 ? 'is-cleared' : ''}`;
+        card.innerHTML = `
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <span style="font-weight:900;font-size:0.9rem;color:var(--wood-dark);">${lv.title}</span>
+              <span class="map-stars">${starStr}</span>
+            </div>
+            <p style="margin:4px 0 0;font-size:0.74rem;color:var(--ink-body);line-height:1.4;">${lv.subtitle}</p>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.74rem;font-weight:700;padding-top:6px;border-top:1px dashed rgba(124,79,43,0.2);">
+            <span style="color:var(--wind-sky-deep);">风序: ${windsStr}</span>
+            <span>${typeof best === 'number' ? `最高 ${best}/${lv.target}分` : `目标 ${lv.target}分`}</span>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          sound.playUiClick();
+          this.startLevel(idx, true);
+          this.showScreen('play');
+        });
+        grid.appendChild(card);
+      });
+
+      root.appendChild(sec);
+    });
+  }
+
+  startLevel(index, resetState = true) {
     this._stopReplayTimer();
     this.currentLevelIndex = index;
     const lv = this.levels[index];
-    if (forceReset || !this.state || this.state.levelId !== lv.id) {
+    if (resetState || !this.state || this.state.levelId !== lv.id) {
       this.state = createInitialState(lv);
       this.activeDurationMs = 0;
-      this.lastResumeTimestamp = performance.now();
+      this.lastResumeTs = performance.now();
       this.cancelCountThisRun = 0;
-      this._recordTelemetry('level_start', { target: lv.target });
+      this._logEvent('level_start', { target: lv.target });
     }
     this.interactionMode = 'place';
     this.previewCell = null;
     this.moveSource = null;
     this.moveDest = null;
-    this.hintStage = 0;
+    this.hintStage = lv.stage === '新手教学' ? 1 : 0; // Automatically show friendly guide bubble on Tutorial levels
     this.replayData = null;
-    this._saveSession();
-    this.renderAll();
+    this._saveProgress();
+    this.renderPlayScreen();
   }
 
-  restartLevel(isUserRetry = true) {
-    const lv = this.levels[this.currentLevelIndex];
-    if (isUserRetry) {
-      this.retryCounts[lv.id] = (this.retryCounts[lv.id] || 0) + 1;
-      this._recordTelemetry('manual_restart', {
-        prevScore: this.state?.score || 0,
-        placedCount: this.state?.placedCount || 0,
-        retryCount: this.retryCounts[lv.id],
-      });
-    }
-    this.loadLevel(this.currentLevelIndex, true);
-  }
-
-  onCellClick(r, c) {
-    if (this.isAnimatingGust || this.interactionMode === 'replay') return;
-    if (this.state.status !== 'playing') return;
-
+  onTileClick(r, c) {
+    if (this.interactionMode === 'replay' || this.state.status !== 'playing') return;
     const cell = this.state.grid[r][c];
 
     if (this.interactionMode === 'move') {
       if (cell !== null) {
-        // Select or switch move source garment
         this.moveSource = { r, c };
         this.moveDest = null;
         sound.playPreviewTap();
-        this._recordTelemetry('preview_move_source', { from: [r, c], type: cell.type });
-        this.renderAll();
+        this.renderPlayScreen();
       } else if (this.moveSource) {
-        // Select destination empty cell for move
+        if (this.moveDest && this.moveDest.r === r && this.moveDest.c === c) {
+          this.confirmAction();
+          return;
+        }
         this.moveDest = { r, c };
         sound.playPreviewTap();
-        this._recordTelemetry('preview_move_dest', {
-          from: [this.moveSource.r, this.moveSource.c],
-          to: [r, c],
-        });
-        this.renderAll();
+        this.renderPlayScreen();
       }
       return;
     }
 
-    // Placement mode:
+    // Placement mode
     if (cell !== null) {
-      // Convenience: if player clicks an existing garment and has tickets & empty space, offer to enter move mode
+      // One-tap shortcut into Move Ticket mode if player taps an existing garment
       if (this.state.tickets > 0 && countEmptyCells(this.state.grid) > 0) {
         this.interactionMode = 'move';
         this.previewCell = null;
         this.moveSource = { r, c };
         this.moveDest = null;
         sound.playPreviewTap();
-        this._recordTelemetry('preview_move_source', { from: [r, c], type: cell.type });
-        this.renderAll();
+        this.renderPlayScreen();
       }
       return;
     }
 
-    // Toggle or set preview cell for placement
+    // Tap empty cell once to preview wind & blocking; tap the same cell again (or click Hang button) to confirm!
     if (this.previewCell && this.previewCell.r === r && this.previewCell.c === c) {
-      // Double-tap / second click on already previewed cell confirms immediately for frictionless mobile UX,
-      // while the explicit "挂好" button is also right below!
-      this.confirmCurrentAction();
+      this.confirmAction();
       return;
     }
 
     this.previewCell = { r, c };
     sound.playPreviewTap();
-    this._recordTelemetry('preview_place', {
-      at: [r, c],
-      itemType: this.state.queue[this.state.placedCount],
-    });
-    this.renderAll();
+    this._logEvent('preview_place', { at: [r, c] });
+    this.renderPlayScreen();
   }
 
-  toggleMoveMode() {
+  toggleMoveTicketMode() {
     if (this.interactionMode === 'replay' || this.state.status !== 'playing') return;
     if (this.interactionMode === 'move') {
       this.interactionMode = 'place';
       this.moveSource = null;
       this.moveDest = null;
-    } else {
-      if (this.state.tickets <= 0 || countEmptyCells(this.state.grid) === 0) return;
+    } else if (this.state.tickets > 0 && countEmptyCells(this.state.grid) > 0) {
       this.interactionMode = 'move';
       this.previewCell = null;
       this.moveSource = null;
       this.moveDest = null;
     }
-    this.renderAll();
+    this.renderPlayScreen();
   }
 
-  cancelCurrentPreview(countAsCancel = true) {
-    if (this.previewCell || this.moveSource || this.moveDest || this.interactionMode === 'move') {
-      if (countAsCancel) {
-        this.cancelCountThisRun += 1;
-        this._recordTelemetry('cancel_preview', {
-          mode: this.interactionMode,
-          cancelCountThisRun: this.cancelCountThisRun,
-        });
-      }
-      this.interactionMode = 'place';
-      this.previewCell = null;
-      this.moveSource = null;
-      this.moveDest = null;
-      this.renderAll();
-    }
-  }
+  confirmAction() {
+    if (this.interactionMode === 'replay' || this.state.status !== 'playing') return;
 
-  confirmCurrentAction() {
-    if (this.isAnimatingGust || this.interactionMode === 'replay') return;
-    if (this.state.status !== 'playing') return;
-
-    // 1. Move Ticket confirmation
+    // 1. Move Ticket execution
     if (this.interactionMode === 'move') {
       if (!this.moveSource || !this.moveDest) return;
       const { state: nextState } = applyMoveAction(
@@ -371,33 +535,30 @@ class JggoGameApp {
         this.moveDest.c
       );
       sound.playMoveTicket();
-      this._recordTelemetry('confirm_move', {
+      this._logEvent('confirm_move', {
         from: [this.moveSource.r, this.moveSource.c],
         to: [this.moveDest.r, this.moveDest.c],
-        ticketsRemaining: nextState.tickets,
       });
       this.state = nextState;
       this.interactionMode = 'place';
       this.moveSource = null;
       this.moveDest = null;
-      this._saveSession();
-      this.renderAll();
+      this._saveProgress();
+      this.renderPlayScreen();
       return;
     }
 
-    // 2. Full Board Skip confirmation
+    // 2. Full Board Skip
     if (isBoardFull(this.state.grid)) {
       const { state: nextState, gustTriggered } = applyPlaceOrSkipAction(this.state, {
         type: 'skip',
       });
-      this._recordTelemetry('confirm_full_skip', {
-        placedCount: nextState.placedCount,
-      });
-      this._handlePostPlaceState(nextState, gustTriggered, false);
+      this._logEvent('confirm_full_skip');
+      this._applyPostPlacementEffects(nextState, gustTriggered, false);
       return;
     }
 
-    // 3. Standard Garment Placement confirmation
+    // 3. Normal Placement
     if (!this.previewCell) return;
     const itemType = this.state.queue[this.state.placedCount];
     const coords = [this.previewCell.r, this.previewCell.c];
@@ -405,103 +566,120 @@ class JggoGameApp {
       type: 'place',
       at: coords,
     });
-
-    this._recordTelemetry('confirm_place', {
-      at: coords,
-      itemType,
-      placedCount: nextState.placedCount,
-    });
-
-    this._handlePostPlaceState(nextState, gustTriggered, itemType === 'H');
+    this._logEvent('confirm_place', { at: coords, itemType });
+    this._applyPostPlacementEffects(nextState, gustTriggered, itemType === 'H');
   }
 
-  _handlePostPlaceState(nextState, gustTriggered, isHeavy) {
+  _applyPostPlacementEffects(nextState, gustTriggered, isHeavy) {
     this.previewCell = null;
     this.state = nextState;
+    this.justBillowedCells.clear();
 
     if (gustTriggered) {
-      sound.playWindGust(gustTriggered.collectedRecords.length);
-      this._recordTelemetry('gust_resolved', {
-        gustNumber: gustTriggered.gustNumber,
-        windDir: gustTriggered.windDir,
-        gustScoreGain: gustTriggered.gustScoreGain,
-        totalScoreAfter: gustTriggered.totalScoreAfter,
+      sound.playWindGust(gustTriggered.collectedRecords.length, gustTriggered.hitRecords.length);
+      this.vfx.triggerWindGustVfx(gustTriggered.windDir);
+
+      // Spawn particle sparkles & floating score popups on every hit cell!
+      gustTriggered.hitRecords.forEach((rec) => {
+        const key = `${rec.r},${rec.c}`;
+        this.justBillowedCells.add(key);
+        const tileEl = document.getElementById(`tile-${rec.r}-${rec.c}`);
+        if (tileEl) {
+          this.vfx.spawnCellBurst(tileEl, rec.points, rec.collected);
+        }
       });
-      const boardEl = document.getElementById('drying-grid');
-      if (boardEl) {
-        boardEl.classList.remove('animate-gust');
-        void boardEl.offsetWidth;
-        boardEl.classList.add('animate-gust');
-      }
     } else {
       sound.playHangConfirm(isHeavy);
     }
 
+    this._saveProgress();
+    this.renderPlayScreen();
+
     if (this.state.status !== 'playing') {
       const lv = this.levels[this.currentLevelIndex];
       const won = this.state.status === 'won';
-      sound.playEndgame(won);
-      const prevBest = this.bestScores[lv.id] ?? 0;
-      if (this.state.score > prevBest) {
+      if (this.state.score > (this.bestScores[lv.id] ?? -1)) {
         this.bestScores[lv.id] = this.state.score;
+        this._saveProgress();
       }
-      this.lastRunSummaries[lv.id] = {
-        score: this.state.score,
-        target: this.state.target,
+      this._logEvent('endgame', {
         won,
-        collectedH: this.state.collectedH,
-        collectedL: this.state.collectedL,
-        gustGains: this.state.gustSummaries.map((g) => g.gustScoreGain),
-        fgSec: this._getForegroundSeconds(),
-        cancelCount: this.cancelCountThisRun,
-      };
-      this._recordTelemetry('endgame', {
-        status: this.state.status,
         score: this.state.score,
         target: this.state.target,
-        cancelCount: this.cancelCountThisRun,
       });
+
+      setTimeout(() => {
+        sound.playEndgame(won);
+        this._openEndgameModal();
+      }, 620);
+    }
+  }
+
+  _openEndgameModal() {
+    const lv = this.levels[this.currentLevelIndex];
+    const won = this.state.status === 'won';
+    const stars = this._calcStars(lv, this.state.score);
+
+    const starsEl = document.getElementById('endgame-stars');
+    const headEl = document.getElementById('endgame-heading');
+    const scoreEl = document.getElementById('endgame-score-line');
+    const subEl = document.getElementById('endgame-sub-stats');
+    const diagEl = document.getElementById('endgame-diagnosis-box');
+
+    if (starsEl) {
+      starsEl.textContent = won ? '⭐'.repeat(stars) + '☆'.repeat(3 - stars) : '🌧️';
+    }
+    if (headEl) {
+      headEl.textContent = won
+        ? stars === 3
+          ? '清风满院 · 完美三星收衣！'
+          : '阳光暖晒 · 顺利达标通关！'
+        : '差一点点 · 还有湿衣留在竹架上';
+    }
+    if (scoreEl) {
+      scoreEl.textContent = `${this.state.score} / ${this.state.target} 分`;
+      scoreEl.style.color = won ? 'var(--emerald-deep)' : 'var(--crimson-warn)';
+    }
+    if (subEl) {
+      subEl.textContent = `收走厚袄 ${this.state.collectedH} 件 (+${this.state.collectedH * 5}) · 收走薄衫 ${this.state.collectedL} 件 (+${this.state.collectedL * 2}) · 四阵得分 [${this.state.gustSummaries.map((g) => g.gustScoreGain).join(' → ')}]`;
     }
 
-    this._saveSession();
-    this.renderAll();
+    if (diagEl) {
+      const rem = diagnoseRemainingGarments(this.state);
+      if (rem.length === 0) {
+        diagEl.innerHTML = `<strong>✨ 全场清空！</strong> 所有挂上的衣物都借风吹干收走了，没有任何遮挡浪费。`;
+      } else {
+        diagEl.innerHTML = `
+          <strong>🔍 留场未干衣物复盘（留场得 0 分）：</strong>
+          <ul style="margin:4px 0 0;padding-left:18px;">
+            ${rem
+              .map(
+                (r) =>
+                  `<li><strong>${r.coordLabel} ${r.type === 'H' ? '厚袄' : '薄衫'}(剩湿${r.wetness})</strong>：${r.reasonText}</li>`
+              )
+              .join('')}
+          </ul>
+        `;
+      }
+    }
+
+    document.getElementById('modal-endgame')?.removeAttribute('hidden');
   }
 
-  advanceHintStage() {
-    this.hintStage = (this.hintStage + 1) % 3;
-    this._recordTelemetry('toggle_hint', { hintStage: this.hintStage });
-    this.renderAll();
-  }
-
-  // Witness & Run Replay System
+  // Witness Replay System
   startWitnessReplay() {
     this._stopReplayTimer();
     const lv = this.levels[this.currentLevelIndex];
     const { snapshots } = replayActionSequence(lv, lv.witnessActions);
     this.interactionMode = 'replay';
     this.replayData = {
-      title: `达标见证演示（${lv.witnessScore} 分 / 目标 ${lv.target} 分）`,
+      title: `达标演示（${lv.witnessScore} 分走法）`,
       snapshots,
       index: 0,
       timer: null,
     };
-    this._recordTelemetry('start_witness_replay');
-    this.renderAll();
-  }
-
-  startPlayerRunReplay() {
-    if (!this.state?.actionLog?.length) return;
-    this._stopReplayTimer();
-    const lv = this.levels[this.currentLevelIndex];
-    const { snapshots } = replayActionSequence(lv, this.state.actionLog);
-    this.interactionMode = 'replay';
-    this.replayData = {
-      title: `本局动作回放（共 ${snapshots.length - 1} 步）`,
-      snapshots,
-      index: 0,
-      timer: null,
-    };
-    this.renderAll();
+    this.renderPlayScreen();
+    this.toggleReplayAuto(); // Immediately play smoothly so player sees the magic!
   }
 
   stepReplay(delta) {
@@ -512,19 +690,27 @@ class JggoGameApp {
     );
     this.replayData.index = nextIdx;
     const snap = this.replayData.snapshots[nextIdx];
-    if (snap.gust) {
-      sound.playWindGust(snap.gust.collectedRecords.length);
+    this.justBillowedCells.clear();
+
+    if (snap.gust && delta > 0) {
+      sound.playWindGust(snap.gust.collectedRecords.length, snap.gust.hitRecords.length);
+      this.vfx.triggerWindGustVfx(snap.gust.windDir);
+      snap.gust.hitRecords.forEach((rec) => {
+        this.justBillowedCells.add(`${rec.r},${rec.c}`);
+        const tileEl = document.getElementById(`tile-${rec.r}-${rec.c}`);
+        if (tileEl) this.vfx.spawnCellBurst(tileEl, rec.points, rec.collected);
+      });
     } else if (delta > 0) {
-      sound.playPreviewTap();
+      sound.playHangConfirm(false);
     }
-    this.renderAll();
+    this.renderPlayScreen();
   }
 
   toggleReplayAuto() {
     if (!this.replayData) return;
     if (this.replayData.timer) {
       this._stopReplayTimer();
-      this.renderAll();
+      this.renderPlayScreen();
       return;
     }
     if (this.replayData.index >= this.replayData.snapshots.length - 1) {
@@ -533,12 +719,12 @@ class JggoGameApp {
     this.replayData.timer = setInterval(() => {
       if (!this.replayData || this.replayData.index >= this.replayData.snapshots.length - 1) {
         this._stopReplayTimer();
-        this.renderAll();
+        this.renderPlayScreen();
         return;
       }
       this.stepReplay(1);
-    }, 850);
-    this.renderAll();
+    }, 880);
+    this.renderPlayScreen();
   }
 
   _stopReplayTimer() {
@@ -548,80 +734,71 @@ class JggoGameApp {
     }
   }
 
-  exitReplayMode() {
-    this._stopReplayTimer();
-    this.interactionMode = 'place';
-    this.replayData = null;
-    this.renderAll();
-  }
-
-  // Rendering Methods
-  renderAll() {
+  // Main Play Screen Render
+  renderPlayScreen() {
     const lv = this.levels[this.currentLevelIndex];
     const activeState =
       this.interactionMode === 'replay' && this.replayData
         ? this.replayData.snapshots[this.replayData.index].state
         : this.state;
 
-    this._renderLevelHeaderAndKPIs(lv, activeState);
-    this._renderWindTrack(lv, activeState);
-    this._renderBoardAndCompass(lv, activeState);
-    this._renderActionBar(lv, activeState);
-    this._renderQueuePanel(lv, activeState);
-    this._renderLevelList();
-    this._renderHintsAndDiagnostics(lv, activeState);
-  }
+    // Sync ambient wind drift direction in VFX engine
+    const upcomingWind = activeState.winds[activeState.gustIndex] || 'W';
+    this.vfx.setAmbientWindDirection(upcomingWind);
 
-  _renderLevelHeaderAndKPIs(lv, activeState) {
-    const titleEl = document.getElementById('current-level-title');
-    const focusEl = document.getElementById('current-level-focus');
-    if (titleEl) titleEl.textContent = `${lv.title}`;
-    if (focusEl) focusEl.textContent = `${lv.subtitle} —— ${lv.focus}`;
+    // 1. HUD
+    document.getElementById('hud-level-title').textContent = lv.title;
+    document.getElementById('hud-level-sub').textContent = lv.subtitle;
+    document.getElementById('hud-score-text').textContent = `${activeState.score} / ${activeState.target}`;
+    const pct = Math.min(100, Math.round((activeState.score / Math.max(1, activeState.target)) * 100));
+    document.getElementById('hud-score-bar').style.width = `${pct}%`;
 
-    const scoreEl = document.getElementById('kpi-score');
-    const scoreSubEl = document.getElementById('kpi-score-sub');
-    const targetEl = document.getElementById('kpi-target');
-    const placedEl = document.getElementById('kpi-placed');
-    const ticketsEl = document.getElementById('kpi-tickets');
+    // 2. Weather Forecast Ribbon
+    const ribbonEl = document.getElementById('weather-ribbon');
+    ribbonEl.style.gridTemplateColumns = `repeat(${activeState.winds.length}, 1fr)`;
+    ribbonEl.innerHTML = activeState.winds
+      .map((wDir, idx) => {
+        const meta = WIND_META[wDir];
+        const isCurrent = idx === activeState.gustIndex && activeState.status === 'playing';
+        const isPast = idx < activeState.gustIndex;
+        const sum = activeState.gustSummaries[idx];
+        const stepsLeft =
+          isCurrent
+            ? `差 ${activeState.gustEvery - (activeState.placedCount % activeState.gustEvery)} 件吹风`
+            : sum
+            ? `收 +${sum.gustScoreGain} 分`
+            : `第 ${(idx + 1) * activeState.gustEvery} 件后`;
 
-    if (scoreEl) scoreEl.textContent = `${activeState.score}`;
-    if (scoreSubEl) {
-      scoreSubEl.textContent = `${activeState.collectedH}厚×5 + ${activeState.collectedL}薄×2`;
-    }
-    if (targetEl) targetEl.textContent = `${activeState.target}`;
-    if (placedEl) placedEl.textContent = `${activeState.placedCount}/${activeState.queue.length}`;
-    if (ticketsEl) ticketsEl.textContent = `${activeState.tickets}`;
-  }
+        return `
+          <div class="weather-badge ${isCurrent ? 'is-upcoming' : ''} ${isPast ? 'is-past' : ''}">
+            <div class="weather-wind-icon">${meta.arrow}</div>
+            <div class="weather-meta">
+              <span class="weather-meta-top">第 ${idx + 1} 阵 · ${stepsLeft}</span>
+              <span class="weather-meta-main">${meta.name}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
 
-  _renderWindTrack(lv, activeState) {
-    const container = document.getElementById('wind-track');
-    if (!container) return;
-    container.innerHTML = '';
-
-    activeState.winds.forEach((wDir, idx) => {
-      const meta = WIND_META[wDir];
-      const slot = document.createElement('div');
-      slot.className = 'wind-slot';
-      if (idx === activeState.gustIndex && activeState.status === 'playing') {
-        slot.classList.add('is-current');
-      } else if (idx < activeState.gustIndex) {
-        slot.classList.add('is-done');
+    // 3. Guide / Two-Level Hint Speech Bubble
+    const bubbleEl = document.getElementById('guide-bubble');
+    if (this.hintStage === 0) {
+      bubbleEl.hidden = true;
+    } else {
+      bubbleEl.hidden = false;
+      if (lv.stage === '新手教学' && this.hintStage === 1 && activeState.placedCount === 0) {
+        bubbleEl.innerHTML = `<strong>🌱 庭院引导：</strong>${lv.focus}（再点一次上方“💡提示”可查看实时盘面诊断）`;
+      } else {
+        const hints = generateTwoLevelHints(activeState);
+        bubbleEl.innerHTML =
+          this.hintStage === 1
+            ? `${hints.level1} <span style="color:var(--wind-sky-deep);font-weight:700;">（再点“💡提示”看行列建议）</span>`
+            : `<div>${hints.level1}</div><div style="margin-top:4px;padding-top:4px;border-top:1px dashed rgba(26,163,200,0.35);">${hints.level2}</div>`;
       }
-      const triggerStep = (idx + 1) * activeState.gustEvery;
-      const summary = activeState.gustSummaries[idx];
-      const resultText = summary ? `已收 +${summary.gustScoreGain}分` : `第 ${triggerStep} 件后`;
+    }
 
-      slot.innerHTML = `
-        <span class="wind-slot-index">第 ${idx + 1} 阵</span>
-        <span class="wind-slot-dir">${meta.name} ${meta.arrow}</span>
-        <span class="wind-slot-trigger">${resultText}</span>
-      `;
-      container.appendChild(slot);
-    });
-  }
-
-  _renderBoardAndCompass(lv, activeState) {
-    // Determine preview action if in playing mode
+    // 4. Courtyard 3x3 Tiles + Edge Wind Stream Indicators
     let previewAction = null;
     if (this.interactionMode === 'place' && this.previewCell) {
       previewAction = { type: 'place', r: this.previewCell.r, c: this.previewCell.c };
@@ -637,393 +814,242 @@ class JggoGameApp {
 
     const { tempGrid, currentWind, forecast } = previewActionForecast(activeState, previewAction);
 
-    // Update 4-edge compass arrows
-    const edges = ['N', 'S', 'W', 'E'];
-    edges.forEach((dir) => {
-      const edgeEl = document.getElementById(`compass-${dir.toLowerCase()}`);
+    ['N', 'S', 'W', 'E'].forEach((dir) => {
+      const edgeEl = document.getElementById(`edge-${dir.toLowerCase()}`);
       if (!edgeEl) return;
-      const isCurrent = currentWind === dir && activeState.status === 'playing';
-      const arrowChar = WIND_META[dir].arrow;
+      const isActiveSide = currentWind === dir && activeState.status === 'playing';
+      const arrow = WIND_META[dir].arrow;
       edgeEl.innerHTML = [0, 1, 2]
         .map((lineIdx) => {
-          const isScanHit =
-            isCurrent && !forecast.emptyScanlines.includes(lineIdx);
-          return `<span class="scan-arrow ${isCurrent ? 'active-wind' : ''}" title="${
-            WIND_META[dir].name
-          }扫描线 ${lineIdx + 1}">${ isScanHit ? arrowChar : '·' }</span>`;
+          if (!isActiveSide) return `<span class="wind-lane-pill"></span>`;
+          const hasTarget = !forecast.emptyScanlines.includes(lineIdx);
+          return `<span class="wind-lane-pill ${
+            hasTarget ? 'is-active-lane' : 'is-empty-lane'
+          }">${arrow}</span>`;
         })
         .join('');
     });
 
-    // Render 3x3 cells
-    const gridEl = document.getElementById('drying-grid');
-    if (!gridEl) return;
+    const gridEl = document.getElementById('courtyard-grid');
     gridEl.innerHTML = '';
 
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
         const cellData = tempGrid[r][c];
-        const cellInfo = forecast.cellMap[`${r},${c}`];
-        const cellBtn = document.createElement('button');
-        cellBtn.type = 'button';
-        cellBtn.id = `cell-${r}-${c}`;
-        cellBtn.className = 'grid-cell';
-        cellBtn.setAttribute('aria-label', `第 ${r + 1} 行第 ${c + 1} 列`);
+        const fInfo = forecast.cellMap[`${r},${c}`];
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = `tile-${r}-${c}`;
+        btn.className = 'courtyard-tile';
+        btn.setAttribute('aria-label', `第 ${r + 1} 行第 ${c + 1} 列`);
 
-        if (
+        const isPreviewSpot =
           (this.previewCell && this.previewCell.r === r && this.previewCell.c === c) ||
-          (this.moveDest && this.moveDest.r === r && this.moveDest.c === c)
-        ) {
-          cellBtn.classList.add('is-preview-target');
-        }
+          (this.moveDest && this.moveDest.r === r && this.moveDest.c === c);
+
+        if (isPreviewSpot) btn.classList.add('is-preview-cell');
         if (this.moveSource && this.moveSource.r === r && this.moveSource.c === c) {
-          cellBtn.classList.add('is-move-source');
+          btn.classList.add('is-move-origin');
         }
 
-        if (cellInfo && activeState.status === 'playing') {
-          if (cellInfo.status === 'collect') {
-            cellBtn.classList.add('will-dry-now');
-          } else if (cellInfo.status === 'hit') {
-            cellBtn.classList.add('will-be-hit');
-          }
+        if (fInfo && activeState.status === 'playing') {
+          if (fInfo.status === 'collect') btn.classList.add('forecast-collect');
+          else if (fInfo.status === 'hit') btn.classList.add('forecast-hit');
         }
 
-        let innerHtml = `<span class="cell-coord">(${r + 1},${c + 1})</span>`;
-
+        let tileHtml = '';
         if (cellData) {
-          const gMeta = GARMENT_META[cellData.type];
           const drops = '💧'.repeat(cellData.wetness);
-          let forecastBadge = '';
-          if (cellInfo && activeState.status === 'playing') {
-            if (cellInfo.status === 'collect') {
-              forecastBadge = `<span class="wind-forecast-tag tag-collect">本阵收走 +${cellInfo.detail.pointsGained}分</span>`;
-            } else if (cellInfo.status === 'hit') {
-              forecastBadge = `<span class="wind-forecast-tag tag-hit">本阵受风 ${cellData.wetness}→${cellInfo.detail.newWetness}</span>`;
-            } else if (cellInfo.status === 'blocked') {
-              const b = cellInfo.detail.blockedBy;
-              forecastBadge = `<span class="wind-forecast-tag tag-blocked">被(${b.r + 1},${b.c + 1})挡风</span>`;
+          const billowClass = this.justBillowedCells.has(`${r},${c}`) ? 'billow-gust' : '';
+          let pillHtml = '';
+          if (fInfo && activeState.status === 'playing') {
+            if (fInfo.status === 'collect') {
+              pillHtml = `<span class="tile-forecast-pill pill-collect">🌬 本阵吹干 +${fInfo.detail.pointsGained}分</span>`;
+            } else if (fInfo.status === 'hit') {
+              pillHtml = `<span class="tile-forecast-pill pill-hit">🌬 迎风减湿 ${cellData.wetness}→${fInfo.detail.newWetness}</span>`;
+            } else if (fInfo.status === 'blocked') {
+              const b = fInfo.detail.blockedBy;
+              pillHtml = `<span class="tile-forecast-pill pill-blocked">🛡 被前排挡风</span>`;
             }
           }
 
-          innerHtml += `
-            <div class="garment-token type-${cellData.type} ${cellData.isPreview ? 'is-ghost' : ''}">
-              ${getGarmentSvg(cellData.type)}
-              <div class="garment-meta">
-                <span>${gMeta.badge}</span>
-                <span class="wetness-pill">湿${cellData.wetness} ${drops}</span>
-              </div>
-              ${forecastBadge}
+          tileHtml = `
+            <span class="wetness-droplets-badge">${drops} ${cellData.wetness}</span>
+            <div class="garment-sprite-wrap ${cellData.type === 'H' ? 'is-heavy' : ''} ${
+            cellData.isPreview ? 'is-ghost-preview' : ''
+          } ${billowClass}">
+              ${renderIllustratedGarmentSvg(cellData.type, cellData.wetness)}
             </div>
+            ${pillHtml}
           `;
         }
 
-        cellBtn.innerHTML = innerHtml;
-        cellBtn.addEventListener('click', () => this.onCellClick(r, c));
-        gridEl.appendChild(cellBtn);
+        btn.innerHTML = tileHtml;
+        btn.addEventListener('click', () => this.onTileClick(r, c));
+        gridEl.appendChild(btn);
       }
     }
+
+    // 5. Action Dock & Laundry Basket Queue
+    this._renderDockAndQueue(lv, activeState);
   }
 
-  _renderActionBar(lv, activeState) {
-    const normalBar = document.getElementById('normal-action-controls');
-    const replayBar = document.getElementById('replay-action-controls');
-    const statusTextEl = document.getElementById('action-status-text');
-    const confirmBtn = document.getElementById('btn-confirm-action');
-    const cancelBtn = document.getElementById('btn-cancel-action');
-    const moveBtn = document.getElementById('btn-toggle-move');
+  _renderDockAndQueue(lv, activeState) {
+    const normalBtns = document.getElementById('dock-normal-btns');
+    const replayBtns = document.getElementById('dock-replay-btns');
+    const promptEl = document.getElementById('dock-prompt-text');
+    const confirmBtn = document.getElementById('btn-confirm-hang');
+    const cancelBtn = document.getElementById('btn-cancel-preview');
+    const ticketBtn = document.getElementById('btn-use-ticket');
 
     if (this.interactionMode === 'replay' && this.replayData) {
-      if (normalBar) normalBar.hidden = true;
-      if (replayBar) replayBar.hidden = false;
+      normalBtns.hidden = true;
+      replayBtns.hidden = false;
       const snap = this.replayData.snapshots[this.replayData.index];
-      if (statusTextEl) {
-        statusTextEl.innerHTML = `<strong>${this.replayData.title}</strong> <span>步骤 ${this.replayData.index}/${this.replayData.snapshots.length - 1}：${snap.label}</span>`;
-      }
-      const autoBtn = document.getElementById('btn-replay-auto');
-      if (autoBtn) {
-        autoBtn.textContent = this.replayData.timer ? '暂停播放' : '自动播放';
-      }
-      return;
-    }
+      promptEl.innerHTML = `🎬 <strong>${this.replayData.title}</strong> · 第 ${this.replayData.index}/${this.replayData.snapshots.length - 1} 步：${snap.label}`;
+      document.getElementById('btn-replay-auto').textContent = this.replayData.timer
+        ? '⏸ 暂停'
+        : '▶ 自动播放';
+    } else {
+      normalBtns.hidden = false;
+      replayBtns.hidden = true;
 
-    if (normalBar) normalBar.hidden = false;
-    if (replayBar) replayBar.hidden = true;
-
-    if (activeState.status !== 'playing') {
-      const won = activeState.status === 'won';
-      if (statusTextEl) {
-        statusTextEl.innerHTML = won
-          ? `<strong style="color: var(--dry-green);">🎉 本局达标！收衣总分 ${activeState.score} 分（目标 ${activeState.target} 分）</strong>`
-          : `<strong style="color: var(--danger-red);">本局结束：收衣总分 ${activeState.score} 分（未达目标 ${activeState.target} 分）</strong>`;
-      }
-      if (confirmBtn) {
+      if (activeState.status !== 'playing') {
+        promptEl.innerHTML =
+          activeState.status === 'won'
+            ? `🎉 <strong>本关已达标（${activeState.score} 分）！</strong> 可点击“重开”挑战更高星级或前往下一关。`
+            : `⛅ <strong>本局结束（${activeState.score}/${activeState.target} 分）</strong> · 点“🎬 演示”可学习过关走法。`;
         confirmBtn.disabled = true;
         confirmBtn.textContent = '本局已结束';
-      }
-      if (cancelBtn) cancelBtn.disabled = true;
-      if (moveBtn) moveBtn.disabled = true;
-      return;
-    }
-
-    const currentItemType = activeState.queue[activeState.placedCount];
-    const itemMeta = GARMENT_META[currentItemType];
-    const stepsUntilWind =
-      activeState.gustEvery - (activeState.placedCount % activeState.gustEvery);
-    const windDir = activeState.winds[activeState.gustIndex];
-    const windMeta = WIND_META[windDir];
-
-    if (this.interactionMode === 'move') {
-      if (!this.moveSource) {
-        statusTextEl.innerHTML = `<span><strong>挪位模式</strong>：请先点击晒场上的一件在场衣物（剩余 ${activeState.tickets} 券）</span>`;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '确认挪位 (-1 券)';
-      } else if (!this.moveDest) {
-        statusTextEl.innerHTML = `<span>已选 <strong>(${this.moveSource.r + 1},${this.moveSource.c + 1})</strong>，请点击目标空格预览挪位</span>`;
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = '确认挪位 (-1 券)';
-      } else {
-        statusTextEl.innerHTML = `<span>预览挪位：<strong>(${this.moveSource.r + 1},${this.moveSource.c + 1}) → (${this.moveDest.r + 1},${this.moveDest.c + 1})</strong>（湿度不变，不消耗投放）</span>`;
+        cancelBtn.disabled = true;
+        ticketBtn.disabled = true;
+      } else if (this.interactionMode === 'move') {
+        if (!this.moveSource) {
+          promptEl.innerHTML = `🎫 <strong>挪位模式</strong>：请点击竹架上要移动的一件衣物（不消耗步数）`;
+          confirmBtn.disabled = true;
+        } else if (!this.moveDest) {
+          promptEl.innerHTML = `🎫 已选 <strong>(${this.moveSource.r + 1},${this.moveSource.c + 1})</strong>，请点击目标空竹竿预览`;
+          confirmBtn.disabled = true;
+        } else {
+          promptEl.innerHTML = `🎫 再次点击目标格或按右侧按钮，确认移至 <strong>(${this.moveDest.r + 1},${this.moveDest.c + 1})</strong>`;
+          confirmBtn.disabled = false;
+        }
+        confirmBtn.textContent = '🎫 确认挪位 (-1券)';
+        cancelBtn.disabled = false;
+        ticketBtn.textContent = '退出挪位';
+        ticketBtn.disabled = false;
+      } else if (isBoardFull(activeState.grid)) {
+        promptEl.innerHTML = `⚠️ <strong>9 格竹架已满</strong>：本件放不下，确认跳过（得 0 分，仍计 1 次挂衣以招来阵风）`;
         confirmBtn.disabled = false;
-        confirmBtn.textContent = '确认挪位 (-1 券)';
+        confirmBtn.textContent = '跳过本件';
+        cancelBtn.disabled = true;
+      } else {
+        const curType = activeState.queue[activeState.placedCount];
+        const curName = curType === 'H' ? '🧥 绞花厚袄 (+5分·需2风)' : '👕 亚麻薄衫 (+2分·需1风)';
+        if (this.previewCell) {
+          const stepsLeft =
+            activeState.gustEvery - (activeState.placedCount % activeState.gustEvery);
+          const windMeta = WIND_META[activeState.winds[activeState.gustIndex]];
+          promptEl.innerHTML = `📌 已预览挂在 <strong>(${this.previewCell.r + 1},${this.previewCell.c + 1})</strong> · 再次点击该格或按右侧按钮挂好`;
+          confirmBtn.disabled = false;
+          confirmBtn.textContent =
+            stepsLeft === 1 ? `📌 挂好并吹${windMeta.name}!` : '📌 挂上竹竿';
+          cancelBtn.disabled = false;
+        } else {
+          promptEl.innerHTML = `🧺 待挂第 <strong>${activeState.placedCount + 1}/${activeState.queue.length}</strong> 件：<strong>${curName}</strong>`;
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = '点空格预览 → 挂好';
+          cancelBtn.disabled = true;
+        }
+        const canUseTicket =
+          activeState.tickets > 0 &&
+          countEmptyCells(activeState.grid) > 0 &&
+          countEmptyCells(activeState.grid) < 9;
+        ticketBtn.disabled = !canUseTicket;
+        ticketBtn.textContent = `🎫 挪位券 (${activeState.tickets})`;
       }
-      cancelBtn.disabled = false;
-      moveBtn.textContent = '退出挪位';
-      moveBtn.disabled = false;
-      return;
     }
 
-    // Placement Mode
-    const full = isBoardFull(activeState.grid);
-    if (full) {
-      statusTextEl.innerHTML = `<span style="color: var(--danger-red);"><strong>盘面已满</strong>：本件【${itemMeta.badge}】放不下，跳过得 0 分（仍计 1 次投放）</span>`;
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = '本件放不下，跳过';
-      cancelBtn.disabled = true;
-    } else if (this.previewCell) {
-      const willTriggerWind = stepsUntilWind === 1;
-      statusTextEl.innerHTML = `<span>已预览将【${itemMeta.badge}】挂在 <strong>(${this.previewCell.r + 1},${this.previewCell.c + 1})</strong>${
-        willTriggerWind ? ` · 确认后吹来第 ${activeState.gustIndex + 1} 阵【${windMeta.name} ${windMeta.arrow}】` : ''
-      }</span>`;
-      confirmBtn.disabled = false;
-      confirmBtn.textContent = willTriggerWind
-        ? `挂好并吹来${windMeta.name} ${windMeta.arrow}`
-        : `挂好（再放 ${stepsUntilWind - 1} 件吹${windMeta.short}风）`;
-      cancelBtn.disabled = false;
-    } else {
-      statusTextEl.innerHTML = `<span>待挂第 <strong>${activeState.placedCount + 1}/${activeState.queue.length}</strong> 件：<strong>${itemMeta.badge}</strong>（点击空格预览，再放 ${stepsUntilWind} 件吹【${windMeta.name} ${windMeta.arrow}】）</span>`;
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = '请先点空格预览 → 挂好';
-      cancelBtn.disabled = true;
-    }
-
-    const canMove =
-      activeState.tickets > 0 &&
-      countEmptyCells(activeState.grid) > 0 &&
-      countEmptyCells(activeState.grid) < 9;
-    moveBtn.disabled = !canMove;
-    moveBtn.textContent = `使用挪位券 (${activeState.tickets})`;
-  }
-
-  _renderQueuePanel(lv, activeState) {
-    const container = document.getElementById('queue-groups');
-    if (!container) return;
-    container.innerHTML = '';
-
+    // Basket Queue Strip
+    const basketEl = document.getElementById('basket-queue-strip');
     const gustEvery = activeState.gustEvery;
-    const totalBatches = Math.ceil(activeState.queue.length / gustEvery);
+    const rounds = Math.ceil(activeState.queue.length / gustEvery);
+    basketEl.style.gridTemplateColumns = rounds <= 2 ? `repeat(${rounds}, 1fr)` : '';
 
-    for (let b = 0; b < totalBatches; b++) {
-      const row = document.createElement('div');
-      row.className = 'queue-batch-row';
-      if (b === activeState.gustIndex && activeState.status === 'playing') {
-        row.classList.add('is-active-batch');
-      }
-
-      const startIdx = b * gustEvery;
-      const endIdx = Math.min(activeState.queue.length, startIdx + gustEvery);
+    let html = '';
+    for (let b = 0; b < rounds; b++) {
+      const start = b * gustEvery;
+      const end = Math.min(activeState.queue.length, start + gustEvery);
       const wDir = activeState.winds[b];
       const wMeta = WIND_META[wDir];
+      const isCurRound = b === activeState.gustIndex && activeState.status === 'playing';
 
-      let chipsHtml = '';
-      for (let i = startIdx; i < startIdx + 3; i++) {
-        if (i < endIdx) {
-          const t = activeState.queue[i];
-          const isPlaced = i < activeState.placedCount;
-          const isCurrent = i === activeState.placedCount && activeState.status === 'playing';
-          chipsHtml += `<div class="queue-chip chip-${t} ${isPlaced ? 'is-placed' : ''} ${
-            isCurrent ? 'is-current-item' : ''
-          }" title="第 ${i + 1} 件：${GARMENT_META[t].desc}">#${i + 1} ${t === 'H' ? '厚H' : '薄L'}</div>`;
-        } else {
-          chipsHtml += `<div></div>`;
-        }
+      let itemsHtml = '';
+      for (let i = start; i < end; i++) {
+        const t = activeState.queue[i];
+        const done = i < activeState.placedCount;
+        const now = i === activeState.placedCount && activeState.status === 'playing';
+        itemsHtml += `
+          <div class="mini-garment-card type-${t} ${done ? 'is-done' : ''} ${now ? 'is-now' : ''}">
+            <span>${t === 'H' ? '🧥厚袄' : '👕薄衫'}</span>
+            <span style="font-size:0.6rem;opacity:0.8;">${t === 'H' ? '2💧 +5' : '1💧 +2'}</span>
+          </div>
+        `;
       }
 
-      row.innerHTML = `
-        <span class="batch-label">第 ${b + 1} 轮</span>
-        ${chipsHtml}
-        <span class="batch-wind-pill">${wMeta ? `${wMeta.short}${wMeta.arrow}` : '-'}</span>
-      `;
-      container.appendChild(row);
-    }
-  }
-
-  _renderLevelList() {
-    const listEl = document.getElementById('level-list');
-    if (!listEl) return;
-    listEl.innerHTML = '';
-
-    this.levels.forEach((lv, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `level-item-btn ${idx === this.currentLevelIndex ? 'is-selected' : ''}`;
-      const best = this.bestScores[lv.id];
-      const cleared = typeof best === 'number' && best >= lv.target;
-      const windStr = lv.winds.map((w) => WIND_META[w].short).join('→');
-
-      btn.innerHTML = `
-        <div>
-          <span class="level-item-title">${lv.title}</span>
-          <span class="level-item-meta">[${lv.stage}] 风向 ${windStr} · 目标 ${lv.target}分</span>
+      html += `
+        <div class="basket-round-box ${isCurRound ? 'is-current-round' : ''}">
+          <div class="basket-round-head">
+            <span>第 ${b + 1} 轮衣篮</span>
+            <span style="color:var(--wind-sky-deep);">${wMeta ? `吹${wMeta.name}${wMeta.arrow}` : ''}</span>
+          </div>
+          <div class="basket-mini-items">${itemsHtml}</div>
         </div>
-        <span class="level-score-badge ${cleared ? 'is-cleared' : ''}">
-          ${typeof best === 'number' ? `最高 ${best}分` : `目标 ${lv.target}`}
-        </span>
       `;
-      btn.addEventListener('click', () => this.loadLevel(idx, true));
-      listEl.appendChild(btn);
-    });
+    }
+    basketEl.innerHTML = html;
   }
 
-  _renderHintsAndDiagnostics(lv, activeState) {
-    // 1. Two-level Hint Box
-    const hintBox = document.getElementById('hint-display-box');
-    const hintBtn = document.getElementById('btn-step-hint');
-    if (hintBox && hintBtn) {
-      const hints = generateTwoLevelHints(activeState);
-      if (this.hintStage === 0) {
-        hintBox.hidden = true;
-        hintBtn.textContent = '一级提示：遮挡诊断';
-      } else if (this.hintStage === 1) {
-        hintBox.hidden = false;
-        hintBox.innerHTML = `<div>${hints.level1}</div>`;
-        hintBtn.textContent = '二级提示：行列规划';
-      } else {
-        hintBox.hidden = false;
-        hintBox.innerHTML = `<div>${hints.level1}</div><hr style="border:0;border-top:1px dashed var(--border-strong);margin:6px 0;"/><div>${hints.level2}</div>`;
-        hintBtn.textContent = '收起提示';
-      }
-    }
+  _renderRecapModal() {
+    const box = document.getElementById('recap-gust-list');
+    if (!box) return;
+    const s = this.state;
+    let html = `<div><strong>当前用时：</strong>${this._fgSec()} 秒 ｜ <strong>取消预览：</strong>${this.cancelCountThisRun} 次 ｜ <strong>重开次数：</strong>${this.retryCounts[s.levelId] || 0} 次</div>`;
 
-    // 2. Gust History & Endgame Diagnosis
-    const logContainer = document.getElementById('gust-log-list');
-    if (!logContainer) return;
-    logContainer.innerHTML = '';
-
-    if (activeState.gustSummaries.length === 0) {
-      logContainer.innerHTML = `<div class="gust-log-card" style="color:var(--text-secondary);">尚未触发阵风。每挂好 ${activeState.gustEvery} 件衣物将自动结算一阵风，并在此记录受风、收衣与被遮挡详情。</div>`;
+    if (s.gustSummaries.length === 0) {
+      html += `<div style="color:var(--ink-body);margin-top:6px;">本局尚未触发阵风结算。</div>`;
     } else {
-      activeState.gustSummaries.forEach((g) => {
-        const hitStr =
+      s.gustSummaries.forEach((g) => {
+        const hits =
           g.hitRecords.length > 0
             ? g.hitRecords
                 .map(
                   (h) =>
-                    `(${h.r + 1},${h.c + 1})${h.type}[${h.beforeWet}→${h.afterWet}${
+                    `(${h.r + 1},${h.c + 1})${h.type === 'H' ? '厚袄' : '薄衫'}[${h.beforeWet}→${h.afterWet}${
                       h.collected ? ` 收+${h.points}` : ''
                     }]`
                 )
                 .join('、')
             : '无受风衣物';
-        const blockedStr =
+        const blocked =
           g.blockedRecords.length > 0
             ? g.blockedRecords
-                .map(
-                  (b) =>
-                    `(${b.r + 1},${b.c + 1})${b.type} 被(${b.blockedBy.r + 1},${b.blockedBy.c + 1})挡住`
-                )
+                .map((b) => `(${b.r + 1},${b.c + 1})被(${b.blockedBy.r + 1},${b.blockedBy.c + 1})挡住`)
                 .join('、')
-            : '无被挡衣物';
-
-        const card = document.createElement('div');
-        card.className = 'gust-log-card';
-        card.innerHTML = `
-          <div class="gust-log-header">
-            <span>第 ${g.gustNumber} 阵 · ${g.windName} ${g.windArrow}</span>
-            <span style="color: var(--dry-green);">本阵 +${g.gustScoreGain} 分（累计 ${g.totalScoreAfter}）</span>
+            : '无遮挡';
+        html += `
+          <div style="padding-top:8px;border-top:1px dashed rgba(124,79,43,0.25);">
+            <strong>第 ${g.gustNumber} 阵 · ${g.windName}${g.windArrow}（本阵 +${g.gustScoreGain} 分 / 累计 ${g.totalScoreAfter} 分）</strong><br/>
+            <span>迎风命中：${hits}</span><br/>
+            <span style="color:var(--ink-muted);">前排遮挡：${blocked}</span>
           </div>
-          <div><strong>受风锁定：</strong>${hitStr}</div>
-          <div style="color: var(--text-secondary);"><strong>遮挡情况：</strong>${blockedStr}</div>
         `;
-        logContainer.appendChild(card);
       });
     }
-
-    // If endgame, append uncollected garment diagnosis + comparison with previous run
-    if (activeState.status !== 'playing') {
-      const remaining = diagnoseRemainingGarments(activeState);
-      const diagCard = document.createElement('div');
-      diagCard.className = 'callout-box';
-      let diagHtml = `<strong>终局留场未干原因诊断（留场衣物得 0 分）：</strong>`;
-      if (remaining.length === 0) {
-        diagHtml += `<div>太棒了！场上无任何残留湿衣，全部吹干收走。</div>`;
-      } else {
-        diagHtml += `<ul style="margin:6px 0 0;padding-left:18px;">${remaining
-          .map(
-            (item) =>
-              `<li><strong>${item.coordLabel} ${GARMENT_META[item.type].badge}（剩湿 ${item.wetness}）</strong>：${item.reasonText}</li>`
-          )
-          .join('')}</ul>`;
-      }
-
-      const prevSummary = this.lastRunSummaries[lv.id];
-      if (prevSummary) {
-        diagHtml += `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--border-strong);font-size:0.74rem;">
-          <strong>本局记录：</strong>各阵得分 [${activeState.gustSummaries.map((g) => g.gustScoreGain).join(' → ')}] · 前台用时 ${this._getForegroundSeconds()}s · 改点取消 ${this.cancelCountThisRun} 次
-        </div>`;
-      }
-      diagCard.innerHTML = diagHtml;
-      logContainer.appendChild(diagCard);
-    }
-  }
-
-  _renderTelemetryModal() {
-    const tbody = document.getElementById('telemetry-table-body');
-    const summaryEl = document.getElementById('telemetry-summary-stats');
-    if (summaryEl) {
-      const lv = this.levels[this.currentLevelIndex];
-      summaryEl.innerHTML = `
-        当前关卡：<strong>${lv.title}</strong> ｜ 前台有效时长：<strong>${this._getForegroundSeconds()} 秒</strong> ｜ 
-        本局取消/改点：<strong>${this.cancelCountThisRun} 次</strong> ｜ 
-        本关重开次数：<strong>${this.retryCounts[lv.id] || 0} 次</strong> ｜ 
-        累计事件数：<strong>${this.telemetryEvents.length} 条</strong>
-      `;
-    }
-    if (!tbody) return;
-    tbody.innerHTML = this.telemetryEvents
-      .slice()
-      .reverse()
-      .slice(0, 40)
-      .map(
-        (ev) => `
-        <tr>
-          <td>${ev.ts.slice(11, 19)}</td>
-          <td>${ev.levelId}</td>
-          <td><code>${ev.eventType}</code></td>
-          <td>${ev.fgSec}s</td>
-          <td style="font-family:monospace;font-size:0.7rem;">${JSON.stringify(
-            Object.fromEntries(
-              Object.entries(ev).filter(
-                ([k]) => !['ts', 'levelId', 'version', 'fgSec', 'eventType'].includes(k)
-              )
-            )
-          )}</td>
-        </tr>
-      `
-      )
-      .join('');
+    box.innerHTML = html;
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.jggoApp = new JggoGameApp();
+  window.gameApp = new CommercialJggoGame();
 });
