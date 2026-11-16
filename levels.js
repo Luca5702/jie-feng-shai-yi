@@ -1,13 +1,25 @@
-// 15 Verified Level Configurations (3 Tutorials + 12 Standard/Challenge Levels)
-// Every level includes a pre-verified reachable witness sequence (可达见证路径).
+// 20 Solver-Certified Progressive 100%-All-Dry Levels across 4 Chapters
+// Generated & verified via solver.js + generator.js
+
+export const CHAPTER_META = [
+  { chapter: 1, stage: "初晴迎风", name: "卷一 · 初晴迎风", desc: "认识四向来风与薄厚衣物" },
+  { chapter: 2, stage: "满院衣裳", name: "卷二 · 满院衣裳", desc: "架上已有湿衣，学会借风让位" },
+  { chapter: 3, stage: "橘荫挡风", name: "卷三 · 橘荫挡风", desc: "绕开盆栽风影，提前两轮布局" },
+  { chapter: 4, stage: "巧手移夹", name: "卷四 · 巧手移夹", desc: "必用移衣木夹化解绝境的精妙残局" },
+];
 
 export const LEVELS = [
   {
-    "id": "T1",
-    "stage": "新手教学",
-    "title": "教学 1 · 初识迎风",
-    "subtitle": "0–15 秒：先理解一次吹干",
-    "focus": "点选薄衣 L 放入不同行的迎风格，观察西风（左→右）吹干收衣得分。",
+    "id": "L1",
+    "num": 1,
+    "chapter": 1,
+    "stage": "初晴迎风",
+    "title": "西风拂面",
+    "subtitle": "西风从左往右吹，把两件薄衫挂在不同排",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [],
     "queue": [
       "L",
       "L"
@@ -15,9 +27,8 @@ export const LEVELS = [
     "winds": [
       "W"
     ],
-    "gustEvery": 2,
-    "tickets": 0,
-    "target": 4,
+    "requireAllDry": true,
+    "difficulty": 11,
     "witnessActions": [
       {
         "type": "place",
@@ -34,251 +45,59 @@ export const LEVELS = [
         ]
       }
     ],
-    "witnessScore": 4,
-    "maxFoundScore": 4
-  },
-  {
-    "id": "T2",
-    "stage": "新手教学",
-    "title": "教学 2 · 前排挡风",
-    "subtitle": "15–30 秒：亲眼看到遮挡",
-    "focus": "每条扫描线只吹第一件衣物，本阵不穿透。将三件薄衣分列摆放以全部受风。",
-    "queue": [
-      "L",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "N"
-    ],
-    "gustEvery": 3,
-    "tickets": 0,
-    "target": 6,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      }
-    ],
-    "witnessScore": 6,
-    "maxFoundScore": 6
-  },
-  {
-    "id": "T3",
-    "stage": "新手教学",
-    "title": "教学 3 · 厚衣跨阵与挪位",
-    "subtitle": "30–45 秒：发现厚衣要两阵",
-    "focus": "厚衣 H 湿度为 2，需跨两阵受风才收走（+5 分）。可利用角落或挪位券让厚衣连吃两阵风。",
-    "queue": [
-      "H",
-      "L",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "W",
-      "N"
-    ],
-    "gustEvery": 2,
-    "tickets": 1,
-    "target": 9,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      }
-    ],
-    "witnessScore": 11,
-    "maxFoundScore": 11
-  },
-  {
-    "id": "L1",
-    "stage": "早期标准",
-    "title": "第 1 关 · 四向回旋（策划书标准算例）",
-    "subtitle": "对应策划书 08 节完整可复算示例",
-    "focus": "四阵风依次为西、北、东、南。注意第三阵东风虽不立即得分，但能为南风准备两件半干厚衣。",
-    "queue": [
-      "H",
-      "H",
-      "H",
-      "L",
-      "L",
-      "L",
-      "H",
-      "H",
-      "H",
-      "L",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "W",
-      "N",
-      "E",
-      "S"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 20,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          1
-        ]
-      }
-    ],
-    "witnessScore": 21,
-    "maxFoundScore": 27
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 2,
+      "totalWetness": 2,
+      "maxWindHits": 3,
+      "tightness": 0.67,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 9,
+      "totalFirstChoices": 9,
+      "greedyWinRate": 1,
+      "randomWinRate": 0.758,
+      "difficultyScore": 11,
+      "statesExplored": 2
+    }
   },
   {
     "id": "L2",
-    "stage": "早期标准",
-    "title": "第 2 关 · 晨风穿堂",
-    "subtitle": "厚薄交替队列，学会让不同扫描线受风",
-    "focus": "薄衣吃一风即腾空，可作为前排临时接风并在下一阵露出后排厚衣。",
+    "num": 2,
+    "chapter": 1,
+    "stage": "初晴迎风",
+    "title": "北风穿廊",
+    "subtitle": "北风从上往下吹，三列各挂一件就能全吹干",
+    "gustEvery": 3,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [],
     "queue": [
       "L",
-      "H",
       "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H"
+      "L"
     ],
     "winds": [
-      "N",
-      "W",
-      "S",
-      "E"
+      "N"
     ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 21,
+    "requireAllDry": true,
+    "difficulty": 22,
     "witnessActions": [
       {
         "type": "place",
@@ -300,951 +119,70 @@ export const LEVELS = [
           0,
           2
         ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
       }
     ],
-    "witnessScore": 22,
-    "maxFoundScore": 22
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 3,
+      "totalWetness": 3,
+      "maxWindHits": 3,
+      "tightness": 1,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 9,
+      "totalFirstChoices": 9,
+      "greedyWinRate": 1,
+      "randomWinRate": 0.279,
+      "difficultyScore": 22,
+      "statesExplored": 3
+    }
   },
   {
     "id": "L3",
-    "stage": "早期标准",
-    "title": "第 3 关 · 双西晒台",
-    "subtitle": "连续两阵同向西风，前排厚衣直通收衣",
-    "focus": "前两阵均为西风！第一轮把厚衣摆在左侧迎风列，第二阵继续受风即可直接收走 3 件厚衣。",
+    "num": 3,
+    "chapter": 1,
+    "stage": "初晴迎风",
+    "title": "厚衣迎双风",
+    "subtitle": "厚衣有 2 滴水，要连吹两阵风才会干",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [],
     "queue": [
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L"
-    ],
-    "winds": [
-      "W",
-      "W",
-      "N",
-      "E"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 22,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      }
-    ],
-    "witnessScore": 27,
-    "maxFoundScore": 27
-  },
-  {
-    "id": "L4",
-    "stage": "中期进阶",
-    "title": "第 4 关 · 南北对流",
-    "subtitle": "先北后南，两端迎风中排蓄力",
-    "focus": "北风与南风分别扫上下两端。注意不要把薄衣塞在会被厚衣挡住的中腹。",
-    "queue": [
-      "H",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
       "H",
       "L",
       "L",
       "L"
     ],
     "winds": [
-      "N",
-      "S",
-      "W",
-      "E"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 24,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "move",
-        "from": [
-          0,
-          2
-        ],
-        "to": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      }
-    ],
-    "witnessScore": 28,
-    "maxFoundScore": 28
-  },
-  {
-    "id": "L5",
-    "stage": "中期进阶",
-    "title": "第 5 关 · 厚衣先至",
-    "subtitle": "前六件全为厚衣，考验空间腾挪",
-    "focus": "前两轮全是厚衣 H，若第一阵只吹半干而第二阵换向，盘面极易拥堵。利用对角与挪位腾出通道。",
-    "queue": [
-      "H",
-      "H",
-      "H",
-      "H",
-      "H",
-      "H",
-      "L",
-      "L",
-      "L",
-      "L",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "W",
-      "E",
-      "N",
-      "S"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 24,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          1
-        ]
-      },
-      {
-        "type": "move",
-        "from": [
-          2,
-          0
-        ],
-        "to": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      }
-    ],
-    "witnessScore": 27,
-    "maxFoundScore": 27
-  },
-  {
-    "id": "L6",
-    "stage": "中期进阶",
-    "title": "第 6 关 · 顺风借位",
-    "subtitle": "东风起手，逆时针四向轮转",
-    "focus": "从右侧第 3 列开始布局，预留北风顶行与西风左列的接力受风位。",
-    "queue": [
-      "L",
-      "L",
-      "H",
-      "H",
-      "L",
-      "H",
-      "H",
-      "L",
-      "L",
-      "H",
-      "H",
-      "L"
-    ],
-    "winds": [
-      "E",
-      "N",
-      "W",
-      "S"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 22,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      }
-    ],
-    "witnessScore": 22,
-    "maxFoundScore": 22
-  },
-  {
-    "id": "L7",
-    "stage": "中期进阶",
-    "title": "第 7 关 · 斜阳长廊",
-    "subtitle": "南风两度来袭，底行成为核心战场",
-    "focus": "第 1、3 阵都是南风。底行是高频风口，把半干厚衣留在第 3 行迎风面收益最高。",
-    "queue": [
-      "H",
-      "L",
-      "H",
-      "H",
-      "L",
-      "H",
-      "L",
-      "H",
-      "L",
-      "L",
-      "H",
-      "L"
-    ],
-    "winds": [
-      "S",
-      "W",
-      "S",
-      "E"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 25,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      }
-    ],
-    "witnessScore": 27,
-    "maxFoundScore": 27
-  },
-  {
-    "id": "L8",
-    "stage": "中期进阶",
-    "title": "第 8 关 · 连风压境",
-    "subtitle": "北风二连后转东南，顶行快速周转",
-    "focus": "利用前两阵连续北风清空顶行厚衣，为后两阵东、南风腾出右列与底行。",
-    "queue": [
-      "L",
-      "H",
-      "H",
-      "L",
-      "H",
-      "H",
-      "H",
-      "L",
-      "L",
-      "H",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "N",
-      "N",
-      "E",
-      "S"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 26,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      }
-    ],
-    "witnessScore": 27,
-    "maxFoundScore": 27
-  },
-  {
-    "id": "L9",
-    "stage": "后期挑战",
-    "title": "第 9 关 · 腾笼换鸟（挑战）",
-    "subtitle": "善用 2 张挪位券，把半干厚衣推上风口",
-    "focus": "高目标挑战：当半干厚衣被困在内侧或背风面时，果断使用挪位券将其移至下一阵迎风首格。",
-    "queue": [
-      "H",
-      "H",
-      "L",
-      "H",
-      "H",
-      "L",
-      "H",
-      "H",
-      "L",
-      "L",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "W",
-      "N",
-      "W",
-      "S"
-    ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 27,
-    "witnessActions": [
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          2
-        ]
-      }
-    ],
-    "witnessScore": 28,
-    "maxFoundScore": 28
-  },
-  {
-    "id": "L10",
-    "stage": "后期挑战",
-    "title": "第 10 关 · 逆风回廊（挑战）",
-    "subtitle": "薄衣开局、中段六件厚衣连发",
-    "focus": "首阵东风先清空三件薄衣拿满 6 分并保持空盘，随后全力规划六件厚衣的跨阵受风。",
-    "queue": [
-      "L",
-      "L",
-      "L",
-      "H",
-      "H",
-      "H",
-      "H",
-      "H",
-      "H",
-      "L",
-      "L",
-      "L"
-    ],
-    "winds": [
-      "E",
-      "S",
       "W",
       "N"
     ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 27,
+    "requireAllDry": true,
+    "difficulty": 23,
     "witnessActions": [
       {
         "type": "place",
@@ -1263,62 +201,6 @@ export const LEVELS = [
       {
         "type": "place",
         "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
           0,
           1
         ]
@@ -1331,38 +213,1170 @@ export const LEVELS = [
         ]
       }
     ],
-    "witnessScore": 27,
-    "maxFoundScore": 27
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 4,
+      "totalWetness": 5,
+      "maxWindHits": 6,
+      "tightness": 0.83,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 9,
+      "totalFirstChoices": 9,
+      "greedyWinRate": 1,
+      "randomWinRate": 0.221,
+      "difficultyScore": 23,
+      "statesExplored": 4
+    }
   },
   {
-    "id": "L11",
-    "stage": "后期挑战",
-    "title": "第 11 关 · 三面来风（挑战）",
-    "subtitle": "北—东—北—西，唯有北侧出现两次",
-    "focus": "没有南风！底行（第 3 行）只有在列扫描空缺或东西风首格时才能受风，切勿在底行堆积厚衣。",
+    "id": "L4",
+    "num": 4,
+    "chapter": 1,
+    "stage": "初晴迎风",
+    "title": "东西对流",
+    "subtitle": "留意风向切换，别让新衣挡住半干的厚衣",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [],
     "queue": [
       "H",
       "L",
-      "H",
-      "H",
-      "H",
-      "L",
-      "L",
-      "H",
       "H",
       "L",
       "L",
       "L"
     ],
     "winds": [
+      "W",
+      "E",
+      "N"
+    ],
+    "requireAllDry": true,
+    "difficulty": 29,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 6,
+      "totalWetness": 8,
+      "maxWindHits": 9,
+      "tightness": 0.89,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 9,
+      "totalFirstChoices": 9,
+      "greedyWinRate": 1,
+      "randomWinRate": 0.063,
+      "difficultyScore": 29,
+      "statesExplored": 9
+    }
+  },
+  {
+    "id": "L5",
+    "num": 5,
+    "chapter": 1,
+    "stage": "初晴迎风",
+    "title": "四面晴风",
+    "subtitle": "四向来风轮流吹过，算准每排的前后顺序",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [],
+    "queue": [
+      "H",
+      "H",
+      "L",
+      "H",
+      "L",
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "W",
       "N",
       "E",
+      "S"
+    ],
+    "requireAllDry": true,
+    "difficulty": 31,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 8,
+      "totalWetness": 11,
+      "maxWindHits": 12,
+      "tightness": 0.92,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 9,
+      "totalFirstChoices": 9,
+      "greedyWinRate": 1,
+      "randomWinRate": 0.067,
+      "difficultyScore": 31,
+      "statesExplored": 8
+    }
+  },
+  {
+    "id": "L6",
+    "num": 6,
+    "chapter": 2,
+    "stage": "满院衣裳",
+    "title": "院中留衣",
+    "subtitle": "架上已有一件厚衣，留出它的迎风通道",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [
+      {
+        "r": 2,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 2,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 1,
+        "type": "L"
+      },
+      {
+        "r": 0,
+        "c": 0,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "E",
+      "W",
+      "S"
+    ],
+    "requireAllDry": true,
+    "difficulty": 35,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 7,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.8,
+      "winningFirstChoices": 4,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0.8,
+      "randomWinRate": 0.171,
+      "difficultyScore": 35,
+      "statesExplored": 3
+    }
+  },
+  {
+    "id": "L7",
+    "num": 7,
+    "chapter": 2,
+    "stage": "满院衣裳",
+    "title": "双衫待风",
+    "subtitle": "先看清架上湿衣的位置，再落手挂衣",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [
+      {
+        "r": 2,
+        "c": 1,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 1,
+        "type": "L"
+      },
+      {
+        "r": 0,
+        "c": 0,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "S",
+      "W",
+      "S"
+    ],
+    "requireAllDry": true,
+    "difficulty": 45,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 7,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.6,
+      "winningFirstChoices": 3,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0.6,
+      "randomWinRate": 0.167,
+      "difficultyScore": 45,
+      "statesExplored": 4
+    }
+  },
+  {
+    "id": "L8",
+    "num": 8,
+    "chapter": 2,
+    "stage": "满院衣裳",
+    "title": "借风藏衣",
+    "subtitle": "有时把薄衫藏在厚衣身后，反而能成全两件",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [
+      {
+        "r": 2,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 0,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 2,
+        "type": "L"
+      },
+      {
+        "r": 1,
+        "c": 1,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "S",
+      "W",
+      "E"
+    ],
+    "requireAllDry": true,
+    "difficulty": 54,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 7,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.6,
+      "winningFirstChoices": 3,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0.35,
+      "randomWinRate": 0.192,
+      "difficultyScore": 54,
+      "statesExplored": 7
+    }
+  },
+  {
+    "id": "L9",
+    "num": 9,
+    "chapter": 2,
+    "stage": "满院衣裳",
+    "title": "回廊错落",
+    "subtitle": "四件旧衣在架，每一步都要算准下一阵风",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [
+      {
+        "r": 1,
+        "c": 1,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 0,
+        "type": "L"
+      },
+      {
+        "r": 0,
+        "c": 0,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "E",
+      "S",
+      "N"
+    ],
+    "requireAllDry": true,
+    "difficulty": 62,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          1,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 7,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.2,
+      "winningFirstChoices": 1,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0.354,
+      "randomWinRate": 0.033,
+      "difficultyScore": 62,
+      "statesExplored": 5
+    }
+  },
+  {
+    "id": "L10",
+    "num": 10,
+    "chapter": 2,
+    "stage": "满院衣裳",
+    "title": "满架生风",
+    "subtitle": "零容错满风局，每一缕风都不能落空",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [],
+    "initialItems": [
+      {
+        "r": 0,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 1,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 0,
+        "type": "L"
+      },
+      {
+        "r": 0,
+        "c": 1,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "N",
+      "W",
+      "W"
+    ],
+    "requireAllDry": true,
+    "difficulty": 68,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 7,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.6,
+      "winningFirstChoices": 3,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0.171,
+      "difficultyScore": 68,
+      "statesExplored": 3
+    }
+  },
+  {
+    "id": "L11",
+    "num": 11,
+    "chapter": 3,
+    "stage": "橘荫挡风",
+    "title": "橘影初现",
+    "subtitle": "橘树盆栽会挡住身后的风，绕开树影挂衣",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 1,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 2,
+        "type": "H"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "E",
+      "N",
+      "S"
+    ],
+    "requireAllDry": true,
+    "difficulty": 72,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          1
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 5,
+      "totalWetness": 7,
+      "maxWindHits": 9,
+      "tightness": 0.78,
+      "firstStepPrecision": 0.8,
+      "winningFirstChoices": 4,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0.163,
+      "difficultyScore": 72,
+      "statesExplored": 4
+    }
+  },
+  {
+    "id": "L12",
+    "num": 12,
+    "chapter": 3,
+    "stage": "橘荫挡风",
+    "title": "斜阳树荫",
+    "subtitle": "风向一变，原本的背风处也会变成迎风位",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [
+      [
+        0,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 0,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 2,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L",
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "S",
+      "S",
+      "E"
+    ],
+    "requireAllDry": true,
+    "difficulty": 77,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 8,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.67,
+      "winningFirstChoices": 4,
+      "totalFirstChoices": 6,
+      "greedyWinRate": 0,
+      "randomWinRate": 0.025,
+      "difficultyScore": 77,
+      "statesExplored": 15
+    }
+  },
+  {
+    "id": "L13",
+    "num": 13,
+    "chapter": 3,
+    "stage": "橘荫挡风",
+    "title": "双橘夹道",
+    "subtitle": "两盆绿植把晒场分成明暗两路，提前布局",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [
+      [
+        2,
+        2
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 2,
+        "c": 1,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 0,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L",
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "W",
       "N",
       "W"
     ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 28,
+    "requireAllDry": true,
+    "difficulty": 79,
     "witnessActions": [
       {
         "type": "place",
@@ -1381,36 +1395,8 @@ export const LEVELS = [
       {
         "type": "place",
         "at": [
-          1,
-          2
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
           0,
-          1
+          0
         ]
       },
       {
@@ -1423,6 +1409,125 @@ export const LEVELS = [
       {
         "type": "place",
         "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 8,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.8,
+      "winningFirstChoices": 4,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0.033,
+      "difficultyScore": 79,
+      "statesExplored": 6
+    }
+  },
+  {
+    "id": "L14",
+    "num": 14,
+    "chapter": 3,
+    "stage": "橘荫挡风",
+    "title": "曲径借风",
+    "subtitle": "利用横竖风切换，让躲在树后的厚衣吹干",
+    "gustEvery": 1,
+    "tickets": 0,
+    "obstacles": [
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 0,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 0,
+        "c": 2,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "H",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "S",
+      "E",
+      "E"
+    ],
+    "requireAllDry": true,
+    "difficulty": 80,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
           1,
           2
         ]
@@ -1431,42 +1536,408 @@ export const LEVELS = [
         "type": "place",
         "at": [
           2,
-          0
+          2
         ]
       },
       {
         "type": "place",
         "at": [
-          2,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
+          1,
           2
         ]
       }
     ],
-    "witnessScore": 28,
-    "maxFoundScore": 28
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 5,
+      "totalWetness": 7,
+      "maxWindHits": 9,
+      "tightness": 0.78,
+      "firstStepPrecision": 0.4,
+      "winningFirstChoices": 2,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0.021,
+      "difficultyScore": 80,
+      "statesExplored": 8
+    }
   },
   {
-    "id": "L12",
-    "stage": "后期挑战",
-    "title": "第 12 关 · 借风收衣（终极挑战）",
-    "subtitle": "南—东—北—西，精准调度每一张挪位券",
-    "focus": "终极考核：主动接受蓄力回合，配合两次关键挪位，在第四阵西风完成全行清场收衣。",
+    "id": "L15",
+    "num": 15,
+    "chapter": 3,
+    "stage": "橘荫挡风",
+    "title": "深院穿堂",
+    "subtitle": "一着不慎便会挡风，三思而后挂",
+    "gustEvery": 2,
+    "tickets": 0,
+    "obstacles": [
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 1,
+        "c": 2,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 0,
+        "type": "L"
+      }
+    ],
     "queue": [
-      "H",
-      "H",
-      "H",
-      "H",
       "L",
       "L",
-      "H",
-      "H",
+      "L",
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "S",
+      "W",
+      "S"
+    ],
+    "requireAllDry": true,
+    "difficulty": 82,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          1
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "minClipsRequired": 0,
+      "totalGarments": 8,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.6,
+      "winningFirstChoices": 3,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0.021,
+      "difficultyScore": 82,
+      "statesExplored": 7
+    }
+  },
+  {
+    "id": "L16",
+    "num": 16,
+    "chapter": 4,
+    "stage": "巧手移夹",
+    "title": "木夹初试",
+    "subtitle": "点一下架上的衣服，用移衣木夹帮它换个迎风位",
+    "gustEvery": 2,
+    "tickets": 1,
+    "obstacles": [
+      [
+        0,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 0,
+        "c": 2,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 2,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L",
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "W",
+      "W",
+      "E"
+    ],
+    "requireAllDry": true,
+    "difficulty": 87,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "move",
+        "from": [
+          0,
+          2
+        ],
+        "to": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "move",
+          "from": [
+            0,
+            2
+          ],
+          "to": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 1,
+      "totalGarments": 8,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 6,
+      "totalFirstChoices": 6,
+      "greedyWinRate": 0,
+      "randomWinRate": 0,
+      "difficultyScore": 87,
+      "statesExplored": 29
+    }
+  },
+  {
+    "id": "L17",
+    "num": 17,
+    "chapter": 4,
+    "stage": "巧手移夹",
+    "title": "出影迎风",
+    "subtitle": "先在迎风位吹干一半，再夹去新风口收尾",
+    "gustEvery": 2,
+    "tickets": 1,
+    "obstacles": [
+      [
+        1,
+        1
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 0,
+        "c": 1,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 0,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
       "L",
       "L",
       "L",
@@ -1475,31 +1946,15 @@ export const LEVELS = [
     "winds": [
       "S",
       "E",
-      "N",
-      "W"
+      "S"
     ],
-    "gustEvery": 3,
-    "tickets": 2,
-    "target": 27,
+    "requireAllDry": true,
+    "difficulty": 91,
     "witnessActions": [
       {
         "type": "place",
         "at": [
           0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          1
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
           2
         ]
       },
@@ -1513,8 +1968,19 @@ export const LEVELS = [
       {
         "type": "place",
         "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "move",
+        "from": [
+          0,
+          1
+        ],
+        "to": [
           1,
-          0
+          2
         ]
       },
       {
@@ -1528,13 +1994,475 @@ export const LEVELS = [
         "type": "place",
         "at": [
           1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          1
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "move",
+          "from": [
+            0,
+            1
+          ],
+          "to": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "minClipsRequired": 1,
+      "totalGarments": 8,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 5,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0,
+      "difficultyScore": 91,
+      "statesExplored": 30
+    }
+  },
+  {
+    "id": "L18",
+    "num": 18,
+    "chapter": 4,
+    "stage": "巧手移夹",
+    "title": "借位腾挪",
+    "subtitle": "算准哪一件最需要木夹相助，好钢用在刀刃上",
+    "gustEvery": 2,
+    "tickets": 1,
+    "obstacles": [
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 0,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 2,
+        "c": 0,
+        "type": "L"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L",
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "E",
+      "N",
+      "E"
+    ],
+    "requireAllDry": true,
+    "difficulty": 93,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "move",
+        "from": [
+          0,
+          0
+        ],
+        "to": [
+          1,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
           1
         ]
       },
       {
         "type": "place",
         "at": [
+          0,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          2
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "move",
+          "from": [
+            0,
+            0
+          ],
+          "to": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 1,
+      "totalGarments": 8,
+      "totalWetness": 9,
+      "maxWindHits": 9,
+      "tightness": 1,
+      "firstStepPrecision": 0.8,
+      "winningFirstChoices": 4,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0,
+      "difficultyScore": 93,
+      "statesExplored": 36
+    }
+  },
+  {
+    "id": "L19",
+    "num": 19,
+    "chapter": 4,
+    "stage": "巧手移夹",
+    "title": "双夹回旋",
+    "subtitle": "两枚木夹缺一不可，步步环环相扣",
+    "gustEvery": 1,
+    "tickets": 2,
+    "obstacles": [
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 2,
+        "c": 2,
+        "type": "H"
+      },
+      {
+        "r": 1,
+        "c": 2,
+        "type": "H"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "W",
+      "E",
+      "W"
+    ],
+    "requireAllDry": true,
+    "difficulty": 97,
+    "witnessActions": [
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "move",
+        "from": [
           1,
+          2
+        ],
+        "to": [
+          0,
+          0
+        ]
+      },
+      {
+        "type": "move",
+        "from": [
+          2,
+          2
+        ],
+        "to": [
+          1,
+          0
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          0
+        ]
+      }
+    ],
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "move",
+          "from": [
+            1,
+            2
+          ],
+          "to": [
+            0,
+            0
+          ]
+        },
+        {
+          "type": "move",
+          "from": [
+            2,
+            2
+          ],
+          "to": [
+            1,
+            0
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            0
+          ]
+        }
+      ],
+      "minClipsRequired": 2,
+      "totalGarments": 5,
+      "totalWetness": 7,
+      "maxWindHits": 9,
+      "tightness": 0.78,
+      "firstStepPrecision": 1,
+      "winningFirstChoices": 5,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0,
+      "difficultyScore": 99,
+      "statesExplored": 76
+    }
+  },
+  {
+    "id": "L20",
+    "num": 20,
+    "chapter": 4,
+    "stage": "巧手移夹",
+    "title": "晴日满庭",
+    "subtitle": "终极试炼：借四方晴风，收尽满院衣裳",
+    "gustEvery": 1,
+    "tickets": 2,
+    "obstacles": [
+      [
+        1,
+        2
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "initialItems": [
+      {
+        "r": 1,
+        "c": 0,
+        "type": "H"
+      },
+      {
+        "r": 0,
+        "c": 2,
+        "type": "H"
+      }
+    ],
+    "queue": [
+      "L",
+      "L",
+      "L"
+    ],
+    "winds": [
+      "S",
+      "N",
+      "N"
+    ],
+    "requireAllDry": true,
+    "difficulty": 99,
+    "witnessActions": [
+      {
+        "type": "move",
+        "from": [
+          0,
+          2
+        ],
+        "to": [
+          0,
+          1
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          2,
+          2
+        ]
+      },
+      {
+        "type": "place",
+        "at": [
+          0,
           2
         ]
       },
@@ -1555,30 +2483,67 @@ export const LEVELS = [
           0,
           2
         ]
-      },
-      {
-        "type": "place",
-        "at": [
-          0,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          1,
-          0
-        ]
-      },
-      {
-        "type": "place",
-        "at": [
-          2,
-          0
-        ]
       }
     ],
-    "witnessScore": 27,
-    "maxFoundScore": 27
+    "metrics": {
+      "solvable": true,
+      "witnessActions": [
+        {
+          "type": "move",
+          "from": [
+            0,
+            2
+          ],
+          "to": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            2,
+            2
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        },
+        {
+          "type": "move",
+          "from": [
+            1,
+            0
+          ],
+          "to": [
+            0,
+            1
+          ]
+        },
+        {
+          "type": "place",
+          "at": [
+            0,
+            2
+          ]
+        }
+      ],
+      "minClipsRequired": 2,
+      "totalGarments": 5,
+      "totalWetness": 7,
+      "maxWindHits": 9,
+      "tightness": 0.78,
+      "firstStepPrecision": 0,
+      "winningFirstChoices": 0,
+      "totalFirstChoices": 5,
+      "greedyWinRate": 0,
+      "randomWinRate": 0,
+      "difficultyScore": 99,
+      "statesExplored": 208
+    }
   }
 ];

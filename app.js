@@ -1,653 +1,1048 @@
-// 借风晒衣 · 简洁亲和版
-// 规则全部由 engine.js 计算；本文件只负责界面、引导与动效。
+// 《借风晒衣》 · 晴日绘本手帐版主控制器
+// 集成：确定性规则机 (engine.js) + 精确状态空间求解器 (solver.js) + 程序化出题器 (generator.js) + 绘本美术组件 (art.js)
+
 import {
   WIND_META,
   GARMENT_META,
   createInitialState,
-  isBoardFull,
+  isGarmentCell,
+  isObstacleCell,
+  computeWindForecast,
   previewActionForecast,
   applyMoveAction,
   applyPlaceOrSkipAction,
+  diagnoseRemainingGarments,
 } from './engine.js';
-import { LEVELS } from './levels.js';
+import { adviseNextAction } from './solver.js';
+import { GENERATOR_TIERS, generatePuzzle } from './generator.js';
+import { CHAPTER_META, LEVELS } from './levels.js';
+import {
+  svgKumquatTree,
+  svgSunStamp,
+  svgWindArrow,
+  ICONS,
+  renderGarmentMarkup,
+} from './art.js';
 import { sound } from './audio.js';
 
-const SAVE_KEY = 'jggo_friendly_v3';
+const SAVE_KEY = 'jggo_storybook_v4';
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const safe = (fn) => { try { fn(); } catch (_) { /* 音频失败不影响游戏 */ } };
-
-/* ------------------------------------------------------------------ */
-/* 美术：扁平衣物插画                                                    */
-/* ------------------------------------------------------------------ */
-const PIN = '<rect x="21" y="0" width="6" height="11" rx="2" fill="#d9a46c"/><rect x="37" y="0" width="6" height="11" rx="2" fill="#d9a46c"/>';
-const THIN_SVG = `<svg viewBox="0 0 64 70" aria-hidden="true">
-  <path d="M21 7 L7 15 L2 28 L13 32 L16 25 L16 60 Q16 63 19 63 L45 63 Q48 63 48 60 L48 25 L51 32 L62 28 L57 15 L43 7 Q32 15 21 7 Z" fill="#8fd0ef"/>
-  <path d="M21 7 Q32 15 43 7 L40 6 Q32 12 24 6 Z" fill="#5fb3dd"/>
-  <path d="M16 25 L16 60 Q16 63 19 63 L24 63 L24 20 Z" fill="#000" opacity=".05"/>
-  ${PIN}</svg>`;
-const THICK_SVG = `<svg viewBox="0 0 64 70" aria-hidden="true">
-  <path d="M20 7 L6 16 L1 52 L12 54 L16 31 L16 60 Q16 64 20 64 L44 64 Q48 64 48 60 L48 31 L52 54 L63 52 L58 16 L44 7 Q32 16 20 7 Z" fill="#f4906f"/>
-  <path d="M20 7 Q32 16 44 7 L41 5 Q32 12 23 5 Z" fill="#d96a4a"/>
-  <path d="M16 56 L48 56 L48 60 Q48 64 44 64 L20 64 Q16 64 16 60 Z" fill="#d96a4a"/>
-  <path d="M1 48 L12 50 L12 54 L1 52 Z M52 50 L63 48 L63 52 L52 54 Z" fill="#d96a4a"/>
-  <path d="M22 30 H42 M22 38 H42 M22 46 H42" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".45"/>
-  ${PIN}</svg>`;
-const DROP = (dry) => `<svg class="drop${dry ? ' is-dry' : ''}" viewBox="0 0 10 13"><path d="M5 0 C5 0 0 6 0 8.4 A5 4.6 0 0 0 10 8.4 C10 6 5 0 5 0 Z"/></svg>`;
-const STAR = (on) => `<svg class="s${on ? ' on' : ''}" viewBox="0 0 24 24"><path d="M12 1.8l3 6.4 7 .8-5.2 4.8 1.4 7-6.2-3.6-6.2 3.6 1.4-7L2 9l7-.8z" stroke-linejoin="round"/></svg>`;
-const HAND = `<svg class="hand" viewBox="0 0 48 48"><path d="M18 22V9a3 3 0 0 1 6 0v11l1-.2V16a3 3 0 0 1 6 0v4.6l.8-.1a3 3 0 0 1 5.2 2V33c0 7-5 11-11 11h-2c-4 0-6.5-1.8-8.6-4.6L9.2 31a3 3 0 0 1 4.6-3.8L18 31z" fill="#fff" stroke="#2d3a46" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
-
-function garmentHtml(type, wetness, { ghost = false, drops = true } = {}) {
-  const w = wetness ?? GARMENT_META[type].initialWetness;
-  const dropHtml = drops ? `<div class="drops">${Array.from({ length: w }, () => DROP(false)).join('')}</div>` : '';
-  return `<div class="garment${ghost ? ' is-ghost' : ''}">${type === 'H' ? THICK_SVG : THIN_SVG}${dropHtml}</div>`;
-}
-
-/* ------------------------------------------------------------------ */
-/* 关卡信息与存档                                                        */
-/* ------------------------------------------------------------------ */
-const CHAPTERS = [
-  { stage: '新手教学', name: '新手教学', desc: '三步学会怎么玩' },
-  { stage: '早期标准', name: '第一章 · 微风', desc: '四个方向的风轮流吹' },
-  { stage: '中期进阶', name: '第二章 · 穿堂风', desc: '学会让衣服互相让位' },
-  { stage: '后期挑战', name: '第三章 · 大风天', desc: '每一分都要算清楚' },
-];
-const isTutorial = (lv) => lv.stage === '新手教学';
-const levelLabel = (lv) => (isTutorial(lv) ? lv.id.slice(1) : lv.id.slice(1));
-const levelName = (lv) => (isTutorial(lv) ? `教学 ${lv.id.slice(1)}` : `第 ${lv.id.slice(1)} 关`);
-const shortTitle = (lv) => (lv.title.split('·')[1] || '').replace(/（.*?）/g, '').trim();
-
-function starsFor(lv, score) {
-  if (score < lv.target) return 0;
-  const best = Math.max(lv.maxFoundScore ?? lv.target, lv.witnessScore ?? lv.target, lv.target);
-  if (score >= best) return 3;
-  return score >= lv.target + Math.ceil((best - lv.target) / 2) ? 2 : 1;
-}
-
-const COACH = {
-  T1: ['点<b>亮起的格子</b>，挂上第一件衣服', '风从<b>左边</b>吹来，每行<b>第一件</b>会被吹到'],
-  T2: ['这次是<b>北风</b>，从上往下吹', '每一列只有<b>最上面</b>那件吹得到', '挂满第一排，三列都能吹到'],
-  T3: ['<b>厚衣</b>有 2 滴水，要吹 <b>2 阵风</b>才会干', '挂好这件就会起风，看看厚衣', '厚衣还剩 1 滴，下一阵<b>北风</b>会吹干它', '最后一件，同样挂在第一排'],
-};
-const TUTORIAL_TOAST = {
-  T1: ['吹干啦！薄衣每件 +2'],
-  T2: ['三列各吹干一件 +6'],
-  T3: ['厚衣少了 1 滴，薄衣吹干 +2', '厚衣也干了 +5'],
+const playSfx = (fn) => {
+  try {
+    fn();
+  } catch (_) {
+    /* ignore audio errors */
+  }
 };
 
-/* ------------------------------------------------------------------ */
-class Game {
+const GUIDED_COACH = {
+  L1: [
+    '<b>西风 →</b> 从左往右吹，点亮格挂上第 1 件薄衫',
+    '再把第 2 件挂在<b>另一排</b>，两件都能迎风吹干',
+  ],
+  L2: [
+    '<b>北风 ↓</b> 从上往下吹，每列<b>最上面</b>那件会受风',
+    '挂在第 2 列，互不遮挡',
+    '最后一件挂满第 3 列，三件一起吹干！',
+  ],
+  L3: [
+    '<b>厚衣</b>有 2 滴水，要吹 <b>2 阵风</b>才会干',
+    '挂好这件薄衫就会吹第 1 阵西风',
+  ],
+};
+
+class SunlitLaundryGame {
   constructor() {
     this.save = this.loadSave();
     this.level = null;
+    this.levelIndex = 0;
+    this.isWorkshop = false;
+    this.workshopTier = 'courtyard';
     this.state = null;
-    this.mode = 'idle'; // idle | preview | pickMove | movePreview
-    this.sel = null; // {r,c} 预览格 / 待挪衣服
-    this.target = null; // 挪位目标
+    this.history = [];
+    this.liftFrom = null; // { r, c } when moving an existing garment
+    this.hoverCell = null; // { r, c } desktop hover preview
+    this.hintSpot = null; // { r, c } or { from, to }
     this.busy = false;
     this.demoToken = 0;
+    this.demoRunning = false;
+    this.dialogLocked = false;
+
     sound.sfxEnabled = this.save.sfx !== false;
-    this.bind();
-    this.renderHomeArt();
-    this.show('home');
+    this.initStaticIcons();
+    this.renderCoverScene();
+    this.bindEvents();
+    this.showScreen('home');
   }
 
   loadSave() {
     try {
-      return { unlocked: 0, best: {}, stars: {}, sfx: true, ...(JSON.parse(localStorage.getItem(SAVE_KEY)) || {}) };
+      const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+      return { unlocked: 0, cleared: {}, sfx: true, ...raw };
     } catch (_) {
-      return { unlocked: 0, best: {}, stars: {}, sfx: true };
+      return { unlocked: 0, cleared: {}, sfx: true };
     }
   }
-  persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.save)); } catch (_) {} }
 
-  /* ---------------- 绑定 ---------------- */
-  bind() {
-    const click = (id, fn) => $(id).addEventListener('click', () => { safe(() => sound.playUiClick()); fn(); });
-    click('btn-start', () => this.startLevel(Math.min(this.save.unlocked, LEVELS.length - 1)));
-    click('btn-levels', () => this.show('map'));
-    click('btn-howto-home', () => this.openHowto());
-    click('btn-home-sound', () => this.toggleSfx());
-    click('btn-map-back', () => this.show('home'));
-    click('btn-play-back', () => { this.stopDemo(); this.show('map'); });
-    click('btn-menu', () => this.openMenu());
-    click('btn-ticket', () => this.onTicket());
-    click('demo-banner', () => this.stopDemo(true));
-    $('btn-confirm').addEventListener('click', () => this.onConfirm());
-    $('scrim').addEventListener('click', () => { if (!this.modalLocked) this.closeLayer(); });
-    $('board').addEventListener('click', (e) => {
-      const el = e.target.closest('.cell');
-      if (el) this.onCell(+el.dataset.r, +el.dataset.c);
-    });
-    window.addEventListener('resize', () => { if (this.state) this.renderWindSide(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.closeLayer(); });
+  persist() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.save));
+    } catch (_) {
+      /* ignore storage errors */
+    }
   }
 
-  show(name) {
-    for (const s of ['home', 'map', 'play']) $(`screen-${s}`).hidden = s !== name;
-    this.closeLayer();
-    if (name === 'map') this.renderMap();
-    if (name === 'home') $('btn-home-sound').textContent = sound.sfxEnabled ? '🔊' : '🔈';
+  initStaticIcons() {
+    $('btn-map-back').innerHTML = ICONS.back;
+    $('btn-play-back').innerHTML = ICONS.back;
+    $('btn-menu').innerHTML = ICONS.menu;
+    $('btn-undo').innerHTML = `${ICONS.undo}<span>撤回</span>`;
+    $('btn-restart').innerHTML = `${ICONS.restart}<span>重来</span>`;
+    $('btn-hint').innerHTML = `${ICONS.hint}<span>提示</span>`;
+    this.syncSoundButton();
   }
 
-  toggleSfx() {
-    this.save.sfx = sound.toggleSfx();
-    this.persist();
-    $('btn-home-sound').textContent = sound.sfxEnabled ? '🔊' : '🔈';
+  syncSoundButton() {
+    $('btn-home-sound').innerHTML = sound.sfxEnabled ? ICONS.soundOn : ICONS.soundOff;
   }
 
-  renderHomeArt() {
-    $('home-line').innerHTML = `
-      <svg class="rope" viewBox="0 0 280 40" preserveAspectRatio="none"><path d="M0 4 Q140 34 280 4" stroke="#b9a58a" stroke-width="2.5" fill="none"/></svg>
-      <div class="hang">${garmentHtml('L', 1, { drops: false })}</div>
-      <div class="hang">${garmentHtml('H', 2, { drops: false })}</div>
-      <div class="hang">${garmentHtml('L', 1, { drops: false })}</div>`;
+  renderCoverScene() {
+    $('cover-scene').innerHTML = `
+      <svg class="cover-rope" viewBox="0 0 340 140" preserveAspectRatio="none">
+        <circle cx="52" cy="28" r="18" fill="#FFF8E3" opacity="0.85"/>
+        <path d="M-6 26 Q170 46 346 24" fill="none" stroke="#3A2E28" stroke-width="2.3"/>
+      </svg>
+      <div class="cover-hang h1">${renderGarmentMarkup('L', 1, { drops: false })}</div>
+      <div class="cover-hang h2">${renderGarmentMarkup('H', 2, { drops: false })}</div>
+      <div class="cover-hang h3">${renderGarmentMarkup('L', 1, { drops: false })}</div>
+      <div class="cover-tree">${svgKumquatTree()}</div>
+    `;
   }
 
-  /* ---------------- 地图 ---------------- */
-  renderMap() {
-    const total = Object.values(this.save.stars).reduce((a, b) => a + b, 0);
-    $('star-total').innerHTML = `⭐ ${total}`;
-    $('map-list').innerHTML = CHAPTERS.map((ch) => {
-      const nodes = LEVELS.map((lv, i) => ({ lv, i })).filter(({ lv }) => lv.stage === ch.stage).map(({ lv, i }) => {
-        const locked = i > this.save.unlocked;
-        const next = i === this.save.unlocked && !this.save.best[lv.id];
-        const st = this.save.stars[lv.id] || 0;
-        const stars = [0, 1, 2].map((k) => `<span class="${k < st ? 'on' : ''}">★</span>`).join('');
-        return `<button class="node ${locked ? 'is-locked' : ''} ${next ? 'is-next' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
-          <b>${locked ? '🔒' : levelLabel(lv)}</b>${locked ? '' : `<span class="stars">${stars}</span>`}</button>`;
-      }).join('');
-      return `<div class="chapter"><h3>${ch.name}</h3><p>${ch.desc}</p><div class="node-grid">${nodes}</div></div>`;
-    }).join('');
-    $('map-list').querySelectorAll('.node:not(.is-locked)').forEach((n) =>
-      n.addEventListener('click', () => { safe(() => sound.playUiClick()); this.startLevel(+n.dataset.i); }));
-  }
+  bindEvents() {
+    const on = (id, fn) =>
+      $(id).addEventListener('click', () => {
+        playSfx(() => sound.playUiClick());
+        fn();
+      });
 
-  /* ---------------- 开局 ---------------- */
-  startLevel(index) {
-    this.stopDemo();
-    this.levelIndex = index;
-    this.level = LEVELS[index];
-    this.state = createInitialState(this.level);
-    this.mode = 'idle';
-    this.sel = this.target = null;
-    this.busy = false;
-    this.show('play');
-    $('screen-play').classList.toggle('is-guided', isTutorial(this.level));
-    $('play-title').textContent = `${levelName(this.level)} · ${shortTitle(this.level)}`;
-    this.render();
-    if (this.level.id === 'L1' && !this.save.sawL1) {
-      this.save.sawL1 = true;
+    on('btn-home-sound', () => {
+      this.save.sfx = sound.toggleSfx();
       this.persist();
-      this.openHowto();
+      this.syncSoundButton();
+    });
+    on('btn-start', () => {
+      const nextIdx = Math.min(this.save.unlocked, LEVELS.length - 1);
+      this.startCampaignLevel(nextIdx);
+    });
+    on('btn-levels', () => this.showScreen('map'));
+    on('btn-workshop-home', () => this.openWorkshopModal());
+    on('btn-howto-home', () => this.openRulesModal(0));
+
+    on('btn-map-back', () => this.showScreen('home'));
+    on('btn-play-back', () => {
+      this.stopDemo();
+      if (this.isWorkshop) this.showScreen('home');
+      else this.showScreen('map');
+    });
+    on('btn-menu', () => this.openMenuModal());
+    on('btn-undo', () => this.undoStep());
+    on('btn-restart', () => this.restartCurrentLevel());
+    on('btn-clip', () => this.toggleClipMode());
+    on('btn-hint', () => this.requestSmartHint());
+    on('demo-pill', () => this.stopDemo(true));
+
+    $('modal-scrim').addEventListener('click', () => {
+      if (!this.dialogLocked) this.closeModal();
+    });
+
+    const board = $('board');
+    board.addEventListener('click', (e) => {
+      const cell = e.target.closest('.cell');
+      if (cell) this.handleCellTap(Number(cell.dataset.r), Number(cell.dataset.c));
+    });
+
+    board.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse' || this.busy || this.demoRunning) return;
+      const cell = e.target.closest('.cell');
+      const next = cell ? { r: Number(cell.dataset.r), c: Number(cell.dataset.c) } : null;
+      const prevKey = this.hoverCell ? `${this.hoverCell.r},${this.hoverCell.c}` : '';
+      const nextKey = next ? `${next.r},${next.c}` : '';
+      if (prevKey !== nextKey) {
+        this.hoverCell = next;
+        if (this.state && this.isPlaying) this.renderBoardAndLanes();
+      }
+    });
+
+    board.addEventListener('pointerleave', () => {
+      if (this.hoverCell) {
+        this.hoverCell = null;
+        if (this.state && this.isPlaying) this.renderBoardAndLanes();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (this.state && !$('screen-play').hidden) this.renderWindLanes();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !$('modal-layer').hidden && !this.dialogLocked) {
+        this.closeModal();
+      } else if ((e.key === 'z' || e.key === 'Z') && !$('screen-play').hidden && $('modal-layer').hidden) {
+        this.undoStep();
+      }
+    });
+  }
+
+  showScreen(name) {
+    for (const key of ['home', 'map', 'play']) {
+      $(`screen-${key}`).hidden = key !== name;
     }
+    this.closeModal();
+    if (name === 'map') this.renderJournalMap();
+    if (name === 'home') this.syncSoundButton();
   }
 
-  get guided() { return isTutorial(this.level) && this.demoToken === 0; }
-  get guideAction() {
-    if (!this.guided) return null;
-    return this.level.witnessActions[this.state.actionLog.length] || null;
+  /* ---------------- 选关手帐 ---------------- */
+  renderJournalMap() {
+    const clearedCount = LEVELS.filter((lv) => this.save.cleared[lv.id]).length;
+    $('stamp-counter').innerHTML = `${svgSunStamp(true)}<span>${clearedCount} / ${LEVELS.length}</span>`;
+
+    $('map-list').innerHTML = CHAPTER_META.map((ch) => {
+      const chLevels = LEVELS.map((lv, idx) => ({ lv, idx })).filter(({ lv }) => lv.chapter === ch.chapter);
+      const chDone = chLevels.filter(({ lv }) => this.save.cleared[lv.id]).length;
+
+      const nodesHtml = chLevels
+        .map(({ lv, idx }) => {
+          const locked = idx > this.save.unlocked;
+          const cleared = Boolean(this.save.cleared[lv.id]);
+          const isCurrent = idx === this.save.unlocked && !cleared;
+          const cls = [
+            'lv-node',
+            locked ? 'is-locked' : '',
+            cleared ? 'is-cleared' : '',
+            isCurrent ? 'is-current' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+          return `<button class="${cls}" data-idx="${idx}" ${locked ? 'disabled' : ''} aria-label="第 ${lv.num} 关 ${lv.title}">
+            ${locked ? ICONS.lock : `<b>${String(lv.num).padStart(2, '0')}</b>${svgSunStamp(cleared)}`}
+          </button>`;
+        })
+        .join('');
+
+      return `<section class="chapter-card">
+        <div class="chapter-head">
+          <h3>${ch.name}</h3>
+          <span>${chDone} / ${chLevels.length}</span>
+        </div>
+        <p class="chapter-desc">${ch.desc}</p>
+        <div class="level-grid">${nodesHtml}</div>
+      </section>`;
+    }).join('');
+
+    $('map-list')
+      .querySelectorAll('.lv-node:not(.is-locked)')
+      .forEach((btn) =>
+        btn.addEventListener('click', () => {
+          playSfx(() => sound.playUiClick());
+          this.startCampaignLevel(Number(btn.dataset.idx));
+        })
+      );
   }
-  get currentType() { return this.state.queue[this.state.placedCount]; }
-  get playing() { return this.state.status === 'playing' && this.state.placedCount < this.state.queue.length; }
 
-  /* ---------------- 交互 ---------------- */
-  onCell(r, c) {
-    if (this.busy || this.demoActive || !this.playing) return;
-    const cell = this.state.grid[r][c];
-    const g = this.guideAction;
+  /* ---------------- 启动关卡 ---------------- */
+  startCampaignLevel(index) {
+    this.isWorkshop = false;
+    this.levelIndex = index;
+    this.loadLevelObject(LEVELS[index]);
+  }
 
-    if (g) {
-      if (g.type === 'place' && g.at[0] === r && g.at[1] === c) this.commit({ type: 'place', at: [r, c] });
+  startWorkshopLevel(levelObj) {
+    this.isWorkshop = true;
+    this.loadLevelObject(levelObj);
+  }
+
+  loadLevelObject(levelObj) {
+    this.stopDemo();
+    this.level = levelObj;
+    this.state = createInitialState(levelObj);
+    this.history = [];
+    this.liftFrom = null;
+    this.hoverCell = null;
+    this.hintSpot = null;
+    this.busy = false;
+
+    this.showScreen('play');
+    if (this.isWorkshop) {
+      $('play-kicker').textContent = `出题工坊 · 难度 ${levelObj.metrics?.difficultyScore ?? '--'}`;
+      $('play-title').textContent = levelObj.title;
+    } else {
+      const chNames = ['一', '二', '三', '四'];
+      $('play-kicker').textContent = `卷${chNames[(levelObj.chapter || 1) - 1]} · 第 ${String(levelObj.num).padStart(2, '0')} 关`;
+      $('play-title').textContent = levelObj.title;
+    }
+    this.renderAll();
+  }
+
+  restartCurrentLevel() {
+    if (this.busy || !this.level) return;
+    this.loadLevelObject(this.level);
+  }
+
+  get isPlaying() {
+    return Boolean(this.state && this.state.status === 'playing' && this.state.placedCount < this.state.queue.length);
+  }
+
+  get guidedStepAction() {
+    if (this.isWorkshop || this.demoRunning || !this.level) return null;
+    if (this.level.id !== 'L1' && this.level.id !== 'L2') return null;
+    return this.level.witnessActions?.[this.state.actionLog.length] || null;
+  }
+
+  /* ---------------- 核心交互 ---------------- */
+  handleCellTap(r, c) {
+    if (this.busy || this.demoRunning || !this.isPlaying) return;
+    this.hintSpot = null;
+    this.hoverCell = null;
+
+    const guided = this.guidedStepAction;
+    if (guided) {
+      if (guided.type === 'place' && guided.at[0] === r && guided.at[1] === c) {
+        this.executePlacement(r, c);
+      }
       return;
     }
 
-    if (this.mode === 'pickMove' || this.mode === 'movePreview') {
-      if (cell) {
-        if (this.sel && this.sel.r === r && this.sel.c === c) return this.resetMode();
-        this.sel = { r, c }; this.target = null; this.mode = 'pickMove';
-        safe(() => sound.playPreviewTap());
-        return this.render();
+    const cell = this.state.grid[r][c];
+
+    // 若正处于移衣木夹状态
+    if (this.liftFrom) {
+      if (this.liftFrom.r === r && this.liftFrom.c === c) {
+        this.liftFrom = null;
+        playSfx(() => sound.playPreviewTap());
+        this.renderAll();
+        return;
       }
-      if (!this.sel) return;
-      if (this.mode === 'movePreview' && this.target.r === r && this.target.c === c) return this.onConfirm();
-      this.target = { r, c }; this.mode = 'movePreview';
-      safe(() => sound.playPreviewTap());
-      return this.render();
+      if (isGarmentCell(cell)) {
+        this.liftFrom = { r, c };
+        playSfx(() => sound.playPreviewTap());
+        this.renderAll();
+        return;
+      }
+      if (!cell) {
+        this.executeMoveClip(this.liftFrom.r, this.liftFrom.c, r, c);
+        return;
+      }
+      this.showToast('橘树盆栽位置不能挂衣');
+      return;
     }
 
-    if (cell) {
-      if (this.state.tickets <= 0) return this.toast('挪位券用完啦', '已挂的衣服不能再挪');
-      this.mode = 'pickMove'; this.sel = { r, c }; this.target = null;
-      safe(() => sound.playPreviewTap());
-      return this.render();
+    // 点击已有衣物：若有木夹则夹起准备移位
+    if (isGarmentCell(cell)) {
+      if (this.state.tickets > 0) {
+        this.liftFrom = { r, c };
+        playSfx(() => sound.playPreviewTap());
+        this.renderAll();
+      } else {
+        this.showToast(
+          this.state.maxTickets > 0 ? '移衣木夹已用完' : '本关无需移衣，点空位挂衣即可'
+        );
+      }
+      return;
     }
 
-    if (this.mode === 'preview' && this.sel.r === r && this.sel.c === c) return this.onConfirm();
-    this.mode = 'preview'; this.sel = { r, c };
-    safe(() => sound.playPreviewTap());
-    this.render();
+    if (isObstacleCell(cell)) {
+      this.showToast('橘树盆栽会挡住顺风方向的后排格子');
+      return;
+    }
+
+    // 空位：单点直接挂衣！支持随时一键「撤回」
+    this.executePlacement(r, c);
   }
 
-  onTicket() {
-    if (this.busy || this.demoActive || !this.playing || this.guided) return;
-    if (this.mode === 'pickMove' || this.mode === 'movePreview') return this.resetMode();
-    if (this.state.tickets <= 0) return this.toast('挪位券用完啦');
-    const hasGarment = this.state.grid.some((row) => row.some(Boolean));
-    if (!hasGarment) return this.toast('先挂几件衣服', '才能挪动它们');
-    this.mode = 'pickMove'; this.sel = null; this.target = null;
-    this.render();
+  toggleClipMode() {
+    if (this.busy || this.demoRunning || !this.isPlaying) return;
+    if (this.liftFrom) {
+      this.liftFrom = null;
+      this.renderAll();
+      return;
+    }
+    if (this.state.tickets <= 0) {
+      this.showToast('移衣木夹已用完');
+      return;
+    }
+    // 自动选中架上第一件可移动衣物或提示点选
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        if (isGarmentCell(this.state.grid[r][c])) {
+          this.liftFrom = { r, c };
+          this.renderAll();
+          this.showToast('已夹起衣物，点任意空位挪过去', '点其它衣物可切换');
+          return;
+        }
+      }
+    }
+    this.showToast('架上还没有衣物可挪动');
   }
 
-  onConfirm() {
-    if (this.busy || !this.playing) return;
-    if (isBoardFull(this.state.grid) && this.mode === 'idle') return this.commit({ type: 'skip' });
-    if (this.mode === 'preview') return this.commit({ type: 'place', at: [this.sel.r, this.sel.c] });
-    if (this.mode === 'movePreview') return this.commitMove();
-  }
-
-  resetMode() { this.mode = 'idle'; this.sel = this.target = null; this.render(); }
-
-  commitMove() {
-    const { r, c } = this.sel; const t = this.target;
+  executeMoveClip(fromR, fromC, toR, toC) {
+    const snapshot = structuredClone(this.state);
     try {
-      const res = applyMoveAction(this.state, r, c, t.r, t.c);
+      const res = applyMoveAction(this.state, fromR, fromC, toR, toC);
+      this.history.push(snapshot);
       this.state = res.state;
-      safe(() => sound.playMoveTicket());
-    } catch (e) { return this.toast(e.message); }
-    this.mode = 'idle'; this.sel = this.target = null;
-    this.render();
+      this.liftFrom = null;
+      playSfx(() => sound.playMoveTicket());
+      this.renderAll();
+    } catch (err) {
+      this.showToast(err.message);
+    }
   }
 
-  async commit(action) {
+  async executePlacement(r, c) {
     if (this.busy) return;
     this.busy = true;
-    const prev = this.state;
-    let res;
-    try { res = applyPlaceOrSkipAction(prev, action); } catch (e) { this.busy = false; return this.toast(e.message); }
-    this.mode = 'idle'; this.sel = this.target = null;
-    const step = prev.actionLog.length;
+    const snapshot = structuredClone(this.state);
+    const placingType = this.state.queue[this.state.placedCount];
 
-    if (action.type === 'place') safe(() => sound.playHangConfirm(this.currentType === 'H'));
+    let res;
+    try {
+      res = applyPlaceOrSkipAction(this.state, { type: 'place', at: [r, c] });
+    } catch (err) {
+      this.busy = false;
+      this.showToast(err.message);
+      return;
+    }
+
+    this.history.push(snapshot);
+    this.liftFrom = null;
+    playSfx(() => sound.playHangConfirm(placingType === 'H'));
 
     if (res.gustTriggered) {
-      // 先展示“挂上后、起风前”的画面
-      const before = action.type === 'place'
-        ? previewActionForecast(prev, { type: 'place', r: action.at[0], c: action.at[1] }).tempGrid
-        : prev.grid;
-      this.state = { ...res.state, grid: before, score: prev.score, gustIndex: prev.gustIndex };
-      this.render({ quiet: true });
-      await sleep(380);
-      await this.playGust(res.gustTriggered);
+      // 先呈现刚挂上瞬间，再吹风结算
+      const preGustGrid = previewActionForecast(snapshot, { type: 'place', r, c }).tempGrid;
+      this.state = {
+        ...res.state,
+        grid: preGustGrid,
+        driedCount: snapshot.driedCount,
+        gustIndex: snapshot.gustIndex,
+      };
+      this.renderAll();
+      await sleep(280);
+      await this.animateWindGust(res.gustTriggered);
       this.state = res.state;
-      this.render();
-      this.bumpScore();
-      const tTexts = TUTORIAL_TOAST[this.level.id];
-      const gi = res.gustTriggered.gustNumber - 1;
-      const gain = res.gustTriggered.gustScoreGain;
-      if (tTexts && tTexts[gi] && this.demoToken === 0) this.toast(tTexts[gi]);
-      else this.toast(gain > 0 ? `${res.gustTriggered.windName} +${gain}` : `${res.gustTriggered.windName}吹过`, gain > 0 ? `收下 ${res.gustTriggered.collectedRecords.length} 件衣服` : '这阵风没吹干衣服');
+      this.renderAll();
     } else {
       this.state = res.state;
-      this.render();
+      this.renderAll();
     }
-    void step;
+
     this.busy = false;
 
     if (this.state.status !== 'playing') {
-      await sleep(900);
-      if (this.demoActive) this.demoActive = false, ($('demo-banner').hidden = true);
-      this.finish();
+      await sleep(520);
+      if (this.demoRunning) {
+        this.demoRunning = false;
+        $('demo-pill').hidden = true;
+      }
+      this.openResultModal();
     }
   }
 
-  async playGust(g) {
-    const layer = $('gust-layer');
-    layer.className = `gust-layer gust-${g.windDir}`;
-    const horizontal = g.windDir === 'W' || g.windDir === 'E';
-    let html = '';
-    for (let i = 0; i < 3; i++) {
-      for (let k = 0; k < 2; k++) {
-        const pos = `${(i * 33.3) + 16.6 + (k ? 6 : -6)}%`;
-        const delay = (k * 0.18 + i * 0.06).toFixed(2);
-        html += `<div class="streak" style="${horizontal ? 'top' : 'left'}:${pos};animation-delay:${delay}s"></div>`;
-      }
+  async animateWindGust(gust) {
+    const fx = $('gust-fx');
+    fx.className = `gust-fx gust-${gust.windDir}`;
+    const isRow = gust.windDir === 'W' || gust.windDir === 'E';
+    let ribbons = '';
+    for (let lane = 0; lane < 3; lane++) {
+      const pos = `${lane * 33.33 + 16.6}%`;
+      const delay = (lane * 0.06).toFixed(2);
+      ribbons += `<div class="breeze-ribbon" style="${isRow ? 'top' : 'left'}:${pos};animation-delay:${delay}s"></div>`;
     }
-    layer.innerHTML = html;
-    safe(() => sound.playWindGust(g.collectedRecords.length, g.hitRecords.length));
-    await sleep(320);
-    const cellEl = (r, c) => $('board').querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
-    for (const h of g.hitRecords) {
-      const el = cellEl(h.r, h.c);
-      if (!el) continue;
-      if (h.collected) {
-        el.classList.add('anim-fly', 'fx-collect');
-        const f = document.createElement('div');
-        f.className = 'float-pts'; f.textContent = `+${h.points}`;
-        el.appendChild(f);
+    fx.innerHTML = ribbons;
+    playSfx(() => sound.playWindGust(gust.collectedRecords.length, gust.hitRecords.length));
+
+    await sleep(220);
+    for (const hit of gust.hitRecords) {
+      const cellEl = $('board').querySelector(`.cell[data-r="${hit.r}"][data-c="${hit.c}"]`);
+      if (!cellEl) continue;
+      if (hit.collected) {
+        cellEl.classList.add('anim-collect');
+        const badge = document.createElement('span');
+        badge.className = 'collect-tag';
+        badge.textContent = '晒干';
+        cellEl.appendChild(badge);
       } else {
-        el.classList.add('anim-shake', 'fx-hit');
-        const drops = el.querySelector('.drops .drop:last-child');
-        if (drops) drops.classList.add('is-dry');
+        cellEl.classList.add('anim-hit');
       }
     }
-    await sleep(900);
-    layer.innerHTML = '';
+    await sleep(560);
+    fx.innerHTML = '';
   }
 
-  bumpScore() {
-    const b = $('score-now');
-    b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
+  undoStep() {
+    if (this.busy || this.demoRunning || this.history.length === 0) return;
+    this.state = this.history.pop();
+    this.liftFrom = null;
+    this.hintSpot = null;
+    this.renderAll();
+  }
+
+  /* ---------------- 实时精确求解提示 ---------------- */
+  requestSmartHint() {
+    if (this.busy || this.demoRunning || !this.isPlaying) return;
+    const advice = adviseNextAction(this.state, this.history);
+
+    if (advice.status === 'solvable' && advice.nextAction) {
+      const act = advice.nextAction;
+      if (act.type === 'place') {
+        this.liftFrom = null;
+        this.hintSpot = { type: 'place', r: act.at[0], c: act.at[1] };
+        this.renderBoardAndLanes();
+        this.showToast(`建议挂在第 ${act.at[0] + 1} 排第 ${act.at[1] + 1} 列`, '已为你高亮标记该格');
+      } else if (act.type === 'move') {
+        this.liftFrom = { r: act.from[0], c: act.from[1] };
+        this.hintSpot = { type: 'move', r: act.to[0], c: act.to[1] };
+        this.renderAll();
+        this.showToast(
+          `用木夹把 (${act.from[0] + 1},${act.from[1] + 1}) 挪到亮框处`,
+          '已为你夹起该件衣服'
+        );
+      }
+      return;
+    }
+
+    // 已经进入死胡同：精准定位可挽回的那一步！
+    const steps = advice.rewindSteps || this.history.length;
+    this.openModal(
+      `<h2>前面有衣服被挡住啦</h2>
+      <p class="dialog-sub">按目前的架上位置，已来不及在风停前把所有衣服晒干。<br>退回 <b>${steps}</b> 步就能重新解开！</p>
+      <div class="dialog-actions">
+        <button class="tactile-btn btn-ivory" id="dl-cancel">我自己看看</button>
+        <button class="tactile-btn btn-persimmon" id="dl-rewind">退回 ${steps} 步</button>
+      </div>`
+    );
+    $('dl-cancel').onclick = () => this.closeModal();
+    $('dl-rewind').onclick = () => {
+      const targetIdx = Math.max(0, advice.rewindToIndex ?? 0);
+      if (this.history[targetIdx]) {
+        this.state = this.history[targetIdx];
+        this.history = this.history.slice(0, targetIdx);
+      }
+      this.liftFrom = null;
+      this.hintSpot = null;
+      this.closeModal();
+      this.renderAll();
+      this.requestSmartHint();
+    };
   }
 
   /* ---------------- 渲染 ---------------- */
-  render(opts = {}) {
-    this.renderScore();
-    this.renderWindRow();
-    this.renderBoard(opts);
-    this.renderWindSide();
-    this.renderTray();
-    this.renderCoach();
+  renderAll() {
+    this.renderHeaderCounter();
+    this.renderWindSchedule();
+    this.renderBoardAndLanes();
+    this.renderDock();
+    this.renderCoachAndWhisper();
   }
 
-  renderScore() {
-    const { score, target } = this.state;
-    $('score-now').textContent = score;
-    $('score-target').textContent = target;
-    const max = Math.max(target * 1.25, this.level.maxFoundScore || target);
-    $('progress-fill').style.width = `${Math.min(100, (score / max) * 100)}%`;
-    const goal = $('progress-goal');
-    goal.style.left = `${(target / max) * 100}%`;
-    goal.textContent = score >= target ? '✓' : '🏁';
-    $('progress').classList.toggle('is-done', score >= target);
+  renderHeaderCounter() {
+    const { driedCount, totalGarments } = this.state;
+    const pill = $('dry-pill');
+    pill.innerHTML = `${svgSunStamp(driedCount === totalGarments)}<span>${driedCount} / ${totalGarments}</span>`;
+    pill.classList.toggle('is-done', driedCount === totalGarments);
   }
 
-  renderWindRow() {
+  renderWindSchedule() {
     const s = this.state;
-    const remain = s.gustEvery - (s.placedCount % s.gustEvery);
-    $('wind-row').innerHTML = s.winds.map((w, i) => {
-      const m = WIND_META[w];
-      if (i === s.gustIndex && this.playing) {
-        return `<div class="wind-dot is-now"><span class="arrow">${m.arrow}</span>${m.name}<small>· 再挂 ${remain} 件</small></div>`;
+    const placedInCycle = s.placedCount % s.gustEvery;
+    $('wind-schedule').innerHTML = s.winds
+      .map((dir, idx) => {
+        const meta = WIND_META[dir];
+        if (idx === s.gustIndex && this.isPlaying) {
+          const pips = Array.from(
+            { length: s.gustEvery },
+            (_, k) => `<i class="w-pip${k < placedInCycle ? ' filled' : ''}"></i>`
+          ).join('');
+          return `<div class="w-chip is-active">${svgWindArrow(dir)}<span>${meta.name}</span><span class="w-pips" title="挂满即吹风">${pips}</span></div>`;
+        }
+        return `<div class="w-chip${idx < s.gustIndex ? ' is-done' : ''}" title="${meta.name}">${svgWindArrow(dir)}<span>${meta.short}</span></div>`;
+      })
+      .join('');
+  }
+
+  computeDisplayForecast() {
+    const s = this.state;
+    const windDir = s.winds[s.gustIndex] || null;
+    if (this.hoverCell && this.isPlaying) {
+      const { r, c } = this.hoverCell;
+      if (!s.grid[r][c]) {
+        if (this.liftFrom) {
+          return previewActionForecast(s, {
+            type: 'move',
+            fromR: this.liftFrom.r,
+            fromC: this.liftFrom.c,
+            toR: r,
+            toC: c,
+          });
+        }
+        return previewActionForecast(s, { type: 'place', r, c });
       }
-      return `<div class="wind-dot ${i < s.gustIndex ? 'is-done' : ''}" title="${m.name}">${m.arrow}</div>`;
-    }).join('<div class="wind-sep"></div>');
+    }
+    return {
+      tempGrid: s.grid,
+      currentWind: windDir,
+      forecast: computeWindForecast(s.grid, windDir),
+    };
   }
 
-  forecast() {
-    const s = this.state;
-    if (!this.playing) return null;
-    if (this.mode === 'preview') return previewActionForecast(s, { type: 'place', r: this.sel.r, c: this.sel.c });
-    if (this.mode === 'movePreview') return previewActionForecast(s, { type: 'move', fromR: this.sel.r, fromC: this.sel.c, toR: this.target.r, toC: this.target.c });
-    return null;
-  }
+  renderBoardAndLanes() {
+    const { tempGrid, forecast } = this.computeDisplayForecast();
+    const shadowSet = new Set(forecast.shadowEmptyCells.map((x) => `${x.r},${x.c}`));
+    const exposedSet = new Set(forecast.exposedEmptyCells.map((x) => `${x.r},${x.c}`));
+    const guided = this.guidedStepAction;
 
-  renderBoard() {
-    const s = this.state;
-    const fc = this.forecast();
-    const grid = fc ? fc.tempGrid : s.grid;
-    const map = fc ? fc.forecast.cellMap : {};
-    const g = this.guideAction;
     let html = '';
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
-        const item = grid[r][c];
-        const cls = ['cell', item ? 'has-item' : 'is-empty'];
+        const key = `${r},${c}`;
+        const cell = tempGrid[r][c];
+        const cls = ['cell'];
         let inner = '';
-        if (item) inner = garmentHtml(item.type, item.wetness, { ghost: !!item.isPreview && this.mode === 'preview' });
-        const f = map[`${r},${c}`];
-        if (f) {
-          cls.push(`fx-${f.status}`);
-          const txt = f.status === 'collect' ? `+${f.detail.pointsGained}` : f.status === 'hit' ? '-1💧' : '挡住';
-          inner += `<span class="tag ${f.status}">${txt}</span>`;
+
+        if (!cell) {
+          cls.push('is-empty');
+          if (shadowSet.has(key)) cls.push('is-shadow');
+          else if (exposedSet.has(key)) cls.push('is-exposed');
+          if (this.liftFrom) cls.push('is-move-dest');
+        } else if (isObstacleCell(cell)) {
+          cls.push('has-tree');
+          inner = `<div class="tree-art">${svgKumquatTree()}</div>`;
+        } else if (isGarmentCell(cell)) {
+          cls.push('has-garment');
+          inner = renderGarmentMarkup(cell.type, cell.wetness, { ghost: Boolean(cell.isPreview) });
+          const fInfo = forecast.cellMap[key];
+          if (fInfo && this.isPlaying) {
+            const label =
+              fInfo.status === 'collect' ? '收' : fInfo.status === 'hit' ? '-1' : '挡';
+            inner += `<span class="fx-badge ${fInfo.status}">${label}</span>`;
+          }
         }
-        if (g) {
-          if (g.type === 'place' && g.at[0] === r && g.at[1] === c) { cls.push('is-target'); inner += HAND; } else cls.push('is-locked');
+
+        if (this.liftFrom && this.liftFrom.r === r && this.liftFrom.c === c) {
+          cls.push('is-lifted');
         }
-        if ((this.mode === 'pickMove' || this.mode === 'movePreview') && this.sel) {
-          if (this.sel.r === r && this.sel.c === c && this.mode === 'pickMove') cls.push('is-selected');
-          if (!item && this.mode === 'pickMove') cls.push('is-drop');
-        } else if (this.mode === 'pickMove' && item) cls.push('is-movable');
-        if (this.mode === 'preview' && this.sel.r === r && this.sel.c === c) cls.push('is-selected');
-        if (this.mode === 'movePreview' && this.target.r === r && this.target.c === c) cls.push('is-selected');
+        if (this.hintSpot && this.hintSpot.r === r && this.hintSpot.c === c) {
+          cls.push('is-hint-spot');
+        }
+        if (guided) {
+          if (guided.type === 'place' && guided.at[0] === r && guided.at[1] === c) {
+            cls.push('is-guide-target');
+            inner += ICONS.hand;
+          } else {
+            cls.push('is-guide-locked');
+          }
+        }
+
         html += `<div class="${cls.join(' ')}" data-r="${r}" data-c="${c}">${inner}</div>`;
       }
     }
+
     $('board').innerHTML = html;
-    this.renderHint(fc);
+    this.renderWindLanes(forecast);
   }
 
-  renderWindSide() {
+  renderWindLanes(forecastArg) {
+    const lanesEl = $('wind-lanes');
     const s = this.state;
-    const side = $('wind-side');
-    const w = s.winds[s.gustIndex];
-    if (!w) { side.innerHTML = ''; side.className = 'wind-side'; return; }
-    side.className = `wind-side wind-${w}`;
-    const B = $('board').clientWidth || 300;
-    const pad = 10, gap = 8, cell = (B - pad * 2 - gap * 2) / 3, off = 34;
-    const fc = this.forecast();
-    const empty = fc ? fc.forecast.emptyScanlines : null;
-    let html = '';
-    for (let i = 0; i < 3; i++) {
-      const center = off + pad + i * (cell + gap) + cell / 2 - 14;
-      let pos;
-      if (w === 'W') pos = `left:3px;top:${center}px`;
-      if (w === 'E') pos = `right:3px;top:${center}px`;
-      if (w === 'N') pos = `top:3px;left:${center}px`;
-      if (w === 'S') pos = `bottom:3px;left:${center}px`;
-      const dim = empty && empty.includes(i) ? ' is-dim' : '';
-      html += `<div class="lane-arrow${dim}" style="${pos}"><span>${WIND_META[w].arrow}</span></div>`;
-    }
-    side.innerHTML = html;
-  }
-
-  renderHint(fc) {
-    const s = this.state; const el = $('hint-line');
-    if (!this.playing) { el.innerHTML = s.status === 'won' ? '<span class="g">过关啦！</span>' : ''; return; }
-    if (this.guided) { el.innerHTML = ''; return; }
-    const wind = WIND_META[s.winds[s.gustIndex]];
-    if (fc) {
-      const hits = fc.forecast.hitCells;
-      const gain = hits.reduce((a, h) => a + h.pointsGained, 0);
-      const key = this.mode === 'preview' ? `${this.sel.r},${this.sel.c}` : `${this.target.r},${this.target.c}`;
-      const me = fc.forecast.cellMap[key];
-      let msg = '';
-      if (me?.status === 'blocked') msg = '这里会被前面的衣服<b>挡住</b>，风吹不到';
-      else if (me?.status === 'hit') msg = '能吹到，但厚衣还要<b>再吹一次</b>';
-      else if (me?.status === 'collect') msg = `下阵${wind.name}能把它<span class="g">吹干</span>`;
-      el.innerHTML = `${msg}${gain ? ` · 预计 <span class="g">+${gain}</span>` : ''}${this.mode === 'preview' ? '<br><small>再点一次或按「挂在这里」</small>' : ''}`;
+    const windDir = s.winds[s.gustIndex];
+    if (!windDir || !this.isPlaying) {
+      lanesEl.innerHTML = '';
+      lanesEl.className = 'wind-lanes';
       return;
     }
-    if (this.mode === 'pickMove') { el.innerHTML = this.sel ? '选一个<b>空格</b>，把衣服挪过去（不占步数）' : '点一件<b>已挂的衣服</b>来挪动'; return; }
-    if (isBoardFull(s.grid)) { el.innerHTML = '晒场满了，这件只能<b>跳过</b>（不得分）'; return; }
-    el.innerHTML = `<span class="w">${wind.arrow} ${wind.name}</span> ${wind.desc}，只吹到每${wind.axis === 'row' ? '行' : '列'}<b>第一件</b>`;
+
+    const forecast = forecastArg || computeWindForecast(s.grid, windDir);
+    lanesEl.className = `wind-lanes wind-${windDir}`;
+
+    const shellW = $('rack-shell').clientWidth || 300;
+    const framePad = 15; // 10px wood + 5px grid pad
+    const gap = 7;
+    const cellSize = (shellW - framePad * 2 - gap * 2) / 3;
+    const offset = 28;
+
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      const center = offset + framePad + i * (cellSize + gap) + cellSize / 2 - 12;
+      let style = '';
+      if (windDir === 'W') style = `left:0px;top:${center}px`;
+      if (windDir === 'E') style = `right:0px;top:${center}px`;
+      if (windDir === 'N') style = `top:0px;left:${center}px`;
+      if (windDir === 'S') style = `bottom:0px;left:${center}px`;
+
+      const idle = forecast.emptyScanlines.includes(i) ? ' is-idle' : '';
+      html += `<div class="lane-token${idle}" style="${style}">${svgWindArrow(windDir)}</div>`;
+    }
+    lanesEl.innerHTML = html;
   }
 
-  renderTray() {
+  renderDock() {
     const s = this.state;
-    const card = $('current-card');
-    const full = isBoardFull(s.grid);
-    if (!this.playing) {
-      card.className = 'current-card is-empty';
-      card.innerHTML = '衣篮空了';
+    const nextSlot = $('next-slot');
+
+    if (!this.isPlaying) {
+      nextSlot.innerHTML = `<div class="next-meta"><span class="kicker">衣篮状态</span><span class="name">已挂完</span></div>`;
     } else {
-      const t = this.currentType; const m = GARMENT_META[t];
-      card.className = `current-card${full ? ' is-skip' : ''}`;
-      card.innerHTML = `<div class="label">${full ? '放不下了' : '现在挂'}</div>${garmentHtml(t, m.initialWetness)}<div class="name">${m.name}</div><div class="pts">吹干 +${m.points} 分</div>`;
+      const curType = s.queue[s.placedCount];
+      const meta = GARMENT_META[curType];
+      nextSlot.innerHTML = `
+        ${renderGarmentMarkup(curType, meta.initialWetness, { drops: false, pins: false })}
+        <div class="next-meta">
+          <span class="kicker">待挂衣物</span>
+          <span class="name">${meta.name}</span>
+          <span class="sub">${meta.initialWetness} 滴水</span>
+        </div>
+      `;
     }
-    // 队列：后续衣物 + 风的位置
-    let q = '';
+
+    // 队列轨迹（含阵风分隔标）
+    let track = '';
     for (let i = s.placedCount; i < s.queue.length; i++) {
-      if (i > s.placedCount) q += `<div class="q-item">${garmentHtml(s.queue[i], 0, { drops: false })}</div>`;
+      if (i > s.placedCount) {
+        track += `<div class="q-garment" title="${GARMENT_META[s.queue[i]].name}">${renderGarmentMarkup(
+          s.queue[i],
+          1,
+          { drops: false, pins: false }
+        )}</div>`;
+      }
       if ((i + 1) % s.gustEvery === 0) {
-        const w = s.winds[(i + 1) / s.gustEvery - 1];
-        if (w) q += `<div class="q-wind" title="${WIND_META[w].name}">${WIND_META[w].arrow}</div>`;
+        const wDir = s.winds[(i + 1) / s.gustEvery - 1];
+        if (wDir) {
+          track += `<div class="q-gust" title="${WIND_META[wDir].name}">${svgWindArrow(wDir)}</div>`;
+        }
       }
     }
-    $('queue').innerHTML = q || '<span class="q-empty">这是最后一件</span>';
+    $('queue-track').innerHTML =
+      track ||
+      `<span class="q-done-msg">${this.isPlaying ? '挂好这件即吹最后一阵风' : '全部阵风已结算完毕'}</span>`;
 
-    const tk = $('btn-ticket');
-    const moving = this.mode === 'pickMove' || this.mode === 'movePreview';
-    tk.innerHTML = moving ? '✕ 取消挪位' : `↔︎ 挪位 ×${s.tickets}`;
-    tk.classList.toggle('is-active', moving);
-    tk.disabled = !this.playing || this.guided || (!moving && s.tickets <= 0);
-    tk.hidden = (this.level.tickets ?? 2) === 0;
+    $('btn-undo').disabled = this.history.length === 0 || !this.isPlaying;
+    $('btn-restart').disabled = this.history.length === 0 && s.status === 'playing';
+    $('btn-hint').disabled = !this.isPlaying || Boolean(this.guidedStepAction);
 
-    const btn = $('btn-confirm');
-    if (this.playing && this.mode === 'preview') { btn.hidden = false; btn.textContent = '挂在这里'; }
-    else if (this.playing && this.mode === 'movePreview') { btn.hidden = false; btn.textContent = '挪到这里'; }
-    else if (this.playing && full && this.mode === 'idle') { btn.hidden = false; btn.textContent = '跳过这件'; }
-    else btn.hidden = true;
-  }
-
-  renderCoach() {
-    const el = $('coach');
-    const lines = COACH[this.level.id];
-    const step = this.state.actionLog.length;
-    if (this.guided && lines && lines[step] && this.playing) {
-      el.hidden = false; el.innerHTML = lines[step];
-    } else if (this.level.id === 'L1' && step === 0 && this.mode === 'idle' && this.demoToken === 0) {
-      el.hidden = false; el.innerHTML = '先<b>点一下</b>格子预览风的效果，再点一次挂上';
-    } else el.hidden = true;
-  }
-
-  /* ---------------- 提示 ---------------- */
-  toast(text, sub = '') {
-    const t = $('toast');
-    t.innerHTML = `${text}${sub ? `<small>${sub}</small>` : ''}`;
-    t.classList.add('show');
-    clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
-  }
-
-  /* ---------------- 弹层 ---------------- */
-  openLayer(html, { center = false, locked = false } = {}) {
-    $('layer').hidden = false;
-    $('layer').classList.toggle('center', center);
-    $('sheet').innerHTML = html;
-    this.modalLocked = locked;
-  }
-  closeLayer() { $('layer').hidden = true; this.modalLocked = false; }
-
-  openMenu() {
-    if (this.busy) return;
-    const items = [
-      ['restart', '↻', '重新开始'],
-      ['howto', '?', '怎么玩'],
-      ['demo', '▶', '看一遍示范'],
-      ['sfx', '♪', '音效', sound.sfxEnabled ? '开' : '关'],
-      ['bgm', '☁', '庭院风声', sound.bgmEnabled ? '开' : '关'],
-      ['map', '▦', '返回关卡'],
-    ];
-    this.openLayer(`<h2>${levelName(this.level)}</h2><p class="sub">${shortTitle(this.level)} · 目标 ${this.level.target} 分</p>
-      <div class="menu-list">${items.map(([k, ic, t, v]) => `<button class="menu-item" data-k="${k}"><span class="ic">${ic}</span>${t}${v ? `<span class="val">${v}</span>` : ''}</button>`).join('')}</div>`);
-    $('sheet').querySelectorAll('.menu-item').forEach((b) => b.addEventListener('click', () => {
-      safe(() => sound.playUiClick());
-      const k = b.dataset.k;
-      if (k === 'restart') { this.closeLayer(); this.startLevel(this.levelIndex); }
-      if (k === 'howto') this.openHowto();
-      if (k === 'demo') { this.closeLayer(); this.runDemo(); }
-      if (k === 'sfx') { this.toggleSfx(); this.openMenu(); }
-      if (k === 'bgm') { sound.toggleBgm(); this.openMenu(); }
-      if (k === 'map') { this.stopDemo(); this.show('map'); }
-    }));
-  }
-
-  openHowto(page = 0) {
-    const mini = (cells, arrows = true) => `<div class="mini-board">${arrows ? '<div class="mini-arrows"><span>→</span><span>→</span><span>→</span></div>' : ''}${cells.map((c) => {
-      if (!c) return '<div class="mc"></div>';
-      const [t, cls, tag] = c;
-      return `<div class="mc ${cls || ''}">${garmentHtml(t, null, { drops: false })}${tag ? `<span class="mt ${tag[0]}">${tag.slice(1)}</span>` : ''}</div>`;
-    }).join('')}</div>`;
-    const cards = [
-      {
-        art: `<div class="howto-row"><div><div class="big-g">${garmentHtml('L', 1, { drops: false })}</div></div><span style="font-size:24px;color:#a7b1ba">→</span>${mini([null, null, null, ['L', 'hl'], null, null, null, null, null], false)}</div>`,
-        t: '把衣服挂上晒场', p: '点空格挂上衣服，<br>每挂 <b>3 件</b>就会吹来一阵风。',
-      },
-      {
-        art: mini([['L', 'hl', 'g+2'], ['L', 'dim', 'x挡'], null, null, null, ['L', 'hl', 'g+2'], ['H', ''], ['L', 'dim', 'x挡'], null]),
-        t: '风只吹第一件', p: '风沿箭头吹过每一行，<br>只吹到<b>最先碰到</b>的那件，后面的被挡住。',
-      },
-      {
-        art: `<div class="howto-row"><div><div class="big-g">${garmentHtml('L', 1)}</div><div class="lbl">薄衣<small>吹 1 次 · +2</small></div></div><div><div class="big-g">${garmentHtml('H', 2)}</div><div class="lbl">厚衣<small>吹 2 次 · +5</small></div></div></div>`,
-        t: '吹干就能收', p: '每吹一次少 <b>1 滴水</b>，水滴没了就收下得分。',
-      },
-      {
-        art: `<div class="howto-row" style="flex-direction:column;gap:10px"><div style="font-size:15px;font-weight:700">↔︎ 挪位券 ×2</div><div style="font-size:30px">🏁</div></div>`,
-        t: '挪位券 · 达标过关', p: '点已挂的衣服可挪到空格（不占步数）。<br>挂完所有衣服时<b>达到目标分</b>就过关！',
-      },
-    ];
-    const c = cards[page];
-    const last = page === cards.length - 1;
-    this.openLayer(`<div class="howto-card"><div class="howto-art">${c.art}</div><h3>${c.t}</h3><p>${c.p}</p></div>
-      <div class="dots">${cards.map((_, i) => `<i class="${i === page ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="result-actions">${page > 0 ? '<button class="btn btn-soft" id="hw-prev">上一步</button>' : ''}<button class="btn btn-primary" id="hw-next">${last ? '知道了' : '下一步'}</button></div>`, { center: true });
-    $('hw-next').onclick = () => { safe(() => sound.playUiClick()); last ? this.closeLayer() : this.openHowto(page + 1); };
-    if (page > 0) $('hw-prev').onclick = () => this.openHowto(page - 1);
-  }
-
-  finish() {
-    const lv = this.level; const s = this.state;
-    const stars = starsFor(lv, s.score);
-    const won = s.status === 'won';
-    safe(() => sound.playEndgame(won));
-    if (won && this.demoToken === 0) {
-      this.save.best[lv.id] = Math.max(this.save.best[lv.id] || 0, s.score);
-      this.save.stars[lv.id] = Math.max(this.save.stars[lv.id] || 0, stars);
-      this.save.unlocked = Math.max(this.save.unlocked, Math.min(this.levelIndex + 1, LEVELS.length - 1));
-      this.persist();
+    const clipBtn = $('btn-clip');
+    if (s.maxTickets > 0) {
+      clipBtn.hidden = false;
+      clipBtn.classList.toggle('is-active', Boolean(this.liftFrom));
+      clipBtn.disabled = !this.isPlaying || (!this.liftFrom && s.tickets <= 0);
+      clipBtn.innerHTML = this.liftFrom
+        ? `<span>取消移衣</span>`
+        : `${ICONS.clip}<span>木夹 ×${s.tickets}</span>`;
+    } else {
+      clipBtn.hidden = true;
     }
-    const hasNext = this.levelIndex < LEVELS.length - 1;
-    let meta = won ? `目标 ${lv.target} 分 · 达成！` : `还差 ${lv.target - s.score} 分 · 试试别的位置`;
-    if (won && lv.id === 'T3') meta = '教学完成！正式关卡每挂 3 件起一次风';
-    if (this.demoToken !== 0) meta = '这是一种过关方法，换你来试试';
-    this.openLayer(`<h2>${won ? (stars === 3 ? '完美晾晒！' : '晒干啦！') : '差一点点'}</h2>
-      <div class="result-stars">${[0, 1, 2].map((k) => STAR(k < stars)).join('')}</div>
-      <div class="result-score">${s.score}</div><div class="result-meta">${meta}</div>
-      <div class="result-actions"><button class="btn btn-soft" id="rs-retry">${won ? '再玩一次' : '重试'}</button>${won && hasNext ? '<button class="btn btn-primary" id="rs-next">下一关</button>' : (!won ? '<button class="btn btn-primary" id="rs-demo">看示范</button>' : '')}</div>`,
-      { center: true, locked: true });
+  }
+
+  renderCoachAndWhisper() {
+    const coachEl = $('coach-note');
+    const whisperEl = $('whisper-line');
+    const step = this.state.actionLog.length;
+
+    const lines = !this.isWorkshop && GUIDED_COACH[this.level.id];
+    if (lines && lines[step] && this.isPlaying && !this.demoRunning) {
+      coachEl.hidden = false;
+      coachEl.innerHTML = lines[step];
+    } else if (
+      !this.isWorkshop &&
+      ['L6', 'L11', 'L16'].includes(this.level.id) &&
+      step === 0 &&
+      this.isPlaying
+    ) {
+      coachEl.hidden = false;
+      coachEl.innerHTML = this.level.subtitle;
+    } else {
+      coachEl.hidden = true;
+    }
+
+    if (!this.isPlaying) {
+      whisperEl.innerHTML =
+        this.state.status === 'won' ? '满架衣裳尽数晒干！' : '还有衣物没干透，试试撤回调整位置';
+      return;
+    }
+    if (this.liftFrom) {
+      whisperEl.innerHTML = '点选任意<b>空位</b>将衣服夹过去（不消耗挂衣步数）';
+      return;
+    }
+    const remainToGust = this.state.gustEvery - (this.state.placedCount % this.state.gustEvery);
+    const wind = WIND_META[this.state.winds[this.state.gustIndex]];
+    whisperEl.innerHTML = `再挂 <b>${remainToGust}</b> 件吹<b>${wind.name}</b> · 斜纹格为当前背风处`;
+  }
+
+  /* ---------------- 提示与弹层 ---------------- */
+  showToast(title, sub = '') {
+    const el = $('toast-note');
+    el.innerHTML = `${title}${sub ? `<small>${sub}</small>` : ''}`;
+    el.classList.add('is-visible');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => el.classList.remove('is-visible'), 1650);
+  }
+
+  openModal(html, { locked = false } = {}) {
+    this.dialogLocked = locked;
+    $('paper-dialog').innerHTML = html;
+    $('modal-layer').hidden = false;
+  }
+
+  closeModal() {
+    $('modal-layer').hidden = true;
+    this.dialogLocked = false;
+  }
+
+  openMenuModal() {
+    if (this.busy) return;
+    this.openModal(`
+      <h2>${this.level.title}</h2>
+      <p class="dialog-sub">${this.level.subtitle || '把衣篮与架上的所有衣物全部晒干'}</p>
+      <div class="menu-stack">
+        <button class="menu-row" data-act="demo">${ICONS.hint}<span>观看过关演示</span></button>
+        <button class="menu-row" data-act="rules">${ICONS.workshop}<span>图解晒衣规则</span></button>
+        <button class="menu-row" data-act="workshop">${ICONS.clip}<span>出题工坊（随机新题）</span></button>
+        <button class="menu-row" data-act="sfx">${sound.sfxEnabled ? ICONS.soundOn : ICONS.soundOff}<span>庭院音效</span><span class="menu-val">${sound.sfxEnabled ? '开启' : '关闭'}</span></button>
+        <button class="menu-row" data-act="bgm">${ICONS.soundOn}<span>午后微风环境音</span><span class="menu-val">${sound.bgmEnabled ? '开启' : '关闭'}</span></button>
+      </div>
+      <div class="dialog-actions">
+        <button class="tactile-btn btn-ivory" id="mn-close">继续晾衣</button>
+      </div>
+    `);
+
+    $('mn-close').onclick = () => this.closeModal();
+    $('paper-dialog')
+      .querySelectorAll('.menu-row')
+      .forEach((row) =>
+        row.addEventListener('click', () => {
+          playSfx(() => sound.playUiClick());
+          const act = row.dataset.act;
+          if (act === 'demo') {
+            this.closeModal();
+            this.runWitnessDemo();
+          } else if (act === 'rules') {
+            this.openRulesModal(0);
+          } else if (act === 'workshop') {
+            this.openWorkshopModal();
+          } else if (act === 'sfx') {
+            this.save.sfx = sound.toggleSfx();
+            this.persist();
+            this.syncSoundButton();
+            this.openMenuModal();
+          } else if (act === 'bgm') {
+            sound.toggleBgm();
+            this.openMenuModal();
+          }
+        })
+      );
+  }
+
+  openRulesModal(page = 0) {
+    const pages = [
+      {
+        title: '一 · 顺风只吹第一件',
+        desc: '每挂满几件衣服就会起风。风顺着箭头扫过每排或每列，<b>只吹到最前排那一件</b>，后面的衣服和盆栽身后都会被挡住。',
+        illus: `<div class="mini-g">${renderGarmentMarkup('L', 1)}</div>
+                <span style="font-weight:900;color:#4994a6">${svgWindArrow('W')}</span>
+                <div class="mini-g" style="opacity:0.42">${renderGarmentMarkup('L', 1)}</div>`,
+      },
+      {
+        title: '二 · 薄衫与厚衣',
+        desc: '<b>薄衫</b>只有 1 滴水，吹 1 次风就干透收走；<br><b>厚衣</b>有 2 滴水，需要跨 2 阵风吹干。',
+        illus: `<div class="mini-g">${renderGarmentMarkup('L', 1)}</div>
+                <div class="mini-g">${renderGarmentMarkup('H', 2)}</div>`,
+      },
+      {
+        title: '三 · 盆栽与移衣木夹',
+        desc: '<b>橘树盆栽</b>会挡住身后的风；遇到绝境时，用<b>移衣木夹</b>把架上的衣服换去迎风位。<b>全部衣服晒干</b>即可盖章过关！',
+        illus: `<div class="mini-g">${svgKumquatTree()}</div>
+                <div class="mini-g" style="width:52px;height:52px">${svgSunStamp(true)}</div>`,
+      },
+    ];
+    const cur = pages[page];
+    const isLast = page === pages.length - 1;
+
+    this.openModal(`
+      <h2>${cur.title}</h2>
+      <div class="rule-box">
+        <div class="rule-illus">${cur.illus}</div>
+        <p class="dialog-sub" style="margin:0">${cur.desc}</p>
+      </div>
+      <div class="rule-dots">${pages.map((_, i) => `<i class="${i === page ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="dialog-actions">
+        ${page > 0 ? '<button class="tactile-btn btn-ivory" id="rl-prev">上一页</button>' : ''}
+        <button class="tactile-btn btn-persimmon" id="rl-next">${isLast ? '明白啦' : '下一页'}</button>
+      </div>
+    `);
+    if ($('rl-prev')) $('rl-prev').onclick = () => this.openRulesModal(page - 1);
+    $('rl-next').onclick = () => (isLast ? this.closeModal() : this.openRulesModal(page + 1));
+  }
+
+  openWorkshopModal() {
+    const renderContent = () => {
+      const cards = Object.values(GENERATOR_TIERS)
+        .map(
+          (t) => `<button class="tier-card${this.workshopTier === t.key ? ' is-picked' : ''}" data-tier="${t.key}">
+            <b>${t.name}</b>
+            <span>${t.subtitle}</span>
+          </button>`
+        )
+        .join('');
+
+      this.openModal(`
+        <h2>晴日出题工坊</h2>
+        <p class="dialog-sub">内置实时出题器与精确求解器，当场生成保证<b>100% 全部晒干可达</b>的全新残局。</p>
+        <div class="tier-list">${cards}</div>
+        <div class="dialog-actions">
+          <button class="tactile-btn btn-ivory" id="ws-cancel">取消</button>
+          <button class="tactile-btn btn-persimmon" id="ws-go">生成新题</button>
+        </div>
+      `);
+
+      $('paper-dialog')
+        .querySelectorAll('.tier-card')
+        .forEach((btn) =>
+          btn.addEventListener('click', () => {
+            this.workshopTier = btn.dataset.tier;
+            renderContent();
+          })
+        );
+      $('ws-cancel').onclick = () => this.closeModal();
+      $('ws-go').onclick = () => {
+        const puzzle = generatePuzzle(this.workshopTier, Date.now());
+        this.closeModal();
+        this.startWorkshopLevel(puzzle);
+      };
+    };
+    renderContent();
+  }
+
+  openResultModal() {
+    const won = this.state.status === 'won';
     const wasDemo = this.demoToken !== 0;
     this.demoToken = 0;
-    $('rs-retry').onclick = () => this.startLevel(this.levelIndex);
-    if ($('rs-next')) $('rs-next').onclick = () => this.startLevel(wasDemo ? this.levelIndex : this.levelIndex + 1);
-    if ($('rs-demo')) $('rs-demo').onclick = () => { this.closeLayer(); this.runDemo(); };
+    playSfx(() => sound.playEndgame(won));
+
+    if (won && !wasDemo && !this.isWorkshop) {
+      this.save.cleared[this.level.id] = true;
+      this.save.unlocked = Math.max(
+        this.save.unlocked,
+        Math.min(this.levelIndex + 1, LEVELS.length - 1)
+      );
+      this.persist();
+    }
+
+    if (won) {
+      const hasNext = !this.isWorkshop && this.levelIndex < LEVELS.length - 1;
+      const subText = wasDemo
+        ? '这是一种满分晒干走法，现在换你亲手试试吧！'
+        : `共收下全部 <b>${this.state.totalGarments}</b> 件清爽干衣！`;
+
+      this.openModal(
+        `<div class="stamp-hero">${svgSunStamp(true)}</div>
+        <h2>${wasDemo ? '演示完毕' : '晴日晒干！'}</h2>
+        <p class="dialog-sub">${subText}</p>
+        <div class="dialog-actions">
+          <button class="tactile-btn btn-ivory" id="rs-again">${wasDemo ? '自己来试' : '再晒一次'}</button>
+          ${
+            this.isWorkshop
+              ? '<button class="tactile-btn btn-persimmon" id="rs-new">再来一题</button>'
+              : hasNext && !wasDemo
+              ? '<button class="tactile-btn btn-persimmon" id="rs-next">下一关</button>'
+              : '<button class="tactile-btn btn-persimmon" id="rs-map">返回手帐</button>'
+          }
+        </div>`,
+        { locked: true }
+      );
+
+      $('rs-again').onclick = () => this.loadLevelObject(this.level);
+      if ($('rs-next')) $('rs-next').onclick = () => this.startCampaignLevel(this.levelIndex + 1);
+      if ($('rs-new')) {
+        $('rs-new').onclick = () => {
+          const puzzle = generatePuzzle(this.workshopTier, Date.now());
+          this.startWorkshopLevel(puzzle);
+        };
+      }
+      if ($('rs-map')) $('rs-map').onclick = () => this.showScreen('map');
+      return;
+    }
+
+    // 未能全部晒干：给出简洁诊断 + 支持退回上一步继续！
+    const remCount = this.state.totalGarments - this.state.driedCount;
+    const diag = diagnoseRemainingGarments(this.state)[0];
+    this.openModal(
+      `<div class="stamp-hero">${svgSunStamp(false)}</div>
+      <h2>还剩 ${remCount} 件没干透</h2>
+      <p class="dialog-sub">${diag ? `${diag.coordLabel}：${diag.reasonText}` : '每一件衣服都要晒干才算过关哦。'}</p>
+      <div class="dialog-actions">
+        ${this.history.length > 0 ? '<button class="tactile-btn btn-ivory" id="rs-undo">撤回一步</button>' : ''}
+        <button class="tactile-btn btn-ivory" id="rs-demo">看演示</button>
+        <button class="tactile-btn btn-persimmon" id="rs-retry">重新摆</button>
+      </div>`,
+      { locked: true }
+    );
+
+    if ($('rs-undo')) {
+      $('rs-undo').onclick = () => {
+        this.closeModal();
+        this.undoStep();
+      };
+    }
+    $('rs-demo').onclick = () => {
+      this.closeModal();
+      this.runWitnessDemo();
+    };
+    $('rs-retry').onclick = () => this.loadLevelObject(this.level);
   }
 
-  /* ---------------- 示范 ---------------- */
-  async runDemo() {
-    this.startLevel(this.levelIndex);
-    const token = ++this.demoToken + Date.now();
+  /* ---------------- 自动演示可达解 ---------------- */
+  async runWitnessDemo() {
+    if (!this.level?.witnessActions?.length) return;
+    this.loadLevelObject(this.level);
+    const token = Date.now();
     this.demoToken = token;
-    this.demoActive = true;
-    $('demo-banner').hidden = false;
-    this.render();
-    await sleep(700);
-    for (const a of this.level.witnessActions) {
+    this.demoRunning = true;
+    $('demo-pill').hidden = false;
+
+    await sleep(480);
+    for (const act of this.level.witnessActions) {
       if (this.demoToken !== token) return;
-      if (a.type === 'move') {
-        this.mode = 'movePreview'; this.sel = { r: a.from[0], c: a.from[1] }; this.target = { r: a.to[0], c: a.to[1] };
-        this.render(); await sleep(800);
+      if (act.type === 'move') {
+        this.liftFrom = { r: act.from[0], c: act.from[1] };
+        this.hintSpot = { type: 'move', r: act.to[0], c: act.to[1] };
+        this.renderAll();
+        await sleep(580);
         if (this.demoToken !== token) return;
-        this.commitMove();
-      } else if (a.type === 'place') {
-        this.mode = 'preview'; this.sel = { r: a.at[0], c: a.at[1] };
-        this.render(); await sleep(750);
+        this.hintSpot = null;
+        this.executeMoveClip(act.from[0], act.from[1], act.to[0], act.to[1]);
+      } else if (act.type === 'place') {
+        this.hintSpot = { type: 'place', r: act.at[0], c: act.at[1] };
+        this.renderBoardAndLanes();
+        await sleep(460);
         if (this.demoToken !== token) return;
-        await this.commit(a);
-      } else {
-        await this.commit(a);
+        this.hintSpot = null;
+        await this.executePlacement(act.at[0], act.at[1]);
       }
-      await sleep(450);
+      await sleep(360);
     }
   }
 
-  stopDemo(restart = false) {
-    if (!this.demoActive && this.demoToken === 0) return;
-    this.demoActive = false;
+  stopDemo(reset = false) {
+    if (!this.demoRunning && this.demoToken === 0) return;
+    this.demoRunning = false;
     this.demoToken = 0;
-    $('demo-banner').hidden = true;
-    if (restart && this.level) this.startLevel(this.levelIndex);
+    $('demo-pill').hidden = true;
+    if (reset && this.level) this.loadLevelObject(this.level);
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => { window.game = new Game(); });
+window.addEventListener('DOMContentLoaded', () => {
+  window.game = new SunlitLaundryGame();
+});

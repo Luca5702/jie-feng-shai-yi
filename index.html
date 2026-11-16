@@ -3,104 +3,126 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#EAF5FB" />
-  <title>借风晒衣</title>
-  <meta name="description" content="看准风向，把衣服晒干。一款轻松的 3×3 解谜小游戏。" />
+  <meta name="theme-color" content="#F4ECDD" />
+  <title>借风晒衣 · 晴日庭院解谜</title>
+  <meta name="description" content="借四方晴风，收尽满院衣裳。一款温暖治愈的 3×3 空间时序解谜小游戏。" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="index.css?v=3" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="index.css?v=4" />
 </head>
 <body>
+  <!-- Subtle SVG paper grain & sunlit botanical dapple -->
+  <svg class="ambient-dapple" viewBox="0 0 400 300" preserveAspectRatio="xMaxYMin slice" aria-hidden="true">
+    <g fill="#C9BA9E" opacity="0.22">
+      <ellipse cx="355" cy="28" rx="46" ry="18" transform="rotate(-24 355 28)" />
+      <ellipse cx="382" cy="64" rx="42" ry="15" transform="rotate(-12 382 64)" />
+      <ellipse cx="322" cy="58" rx="34" ry="13" transform="rotate(-35 322 58)" />
+      <ellipse cx="36" cy="22" rx="38" ry="14" transform="rotate(22 36 22)" />
+    </g>
+  </svg>
+
   <div id="app">
-    <!-- 首页 -->
+    <!-- 封面首页 -->
     <section class="screen" id="screen-home">
-      <div class="home-sky">
-        <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+      <div class="home-top">
+        <button class="token-icon" id="btn-home-sound" aria-label="切换声音"></button>
       </div>
-      <div class="home-inner">
-        <div class="home-line" id="home-line" aria-hidden="true"></div>
-        <h1 class="logo">借风晒衣</h1>
-        <p class="tagline">看准风向，把衣服晒干</p>
-        <div class="home-actions">
-          <button class="btn btn-primary btn-xl" id="btn-start">开始游戏</button>
-          <div class="home-links">
-            <button class="btn btn-ghost" id="btn-levels">选择关卡</button>
-            <button class="btn btn-ghost" id="btn-howto-home">怎么玩</button>
+
+      <div class="cover-card">
+        <div class="cover-scene" id="cover-scene" aria-hidden="true"></div>
+        <div class="title-lockup">
+          <span class="seal-badge">晴日</span>
+          <h1 class="book-title">借风晒衣</h1>
+        </div>
+        <p class="book-sub">看准四方来风 · 把每件衣裳都晒干收好</p>
+
+        <div class="cover-actions">
+          <button class="tactile-btn btn-persimmon btn-lg" id="btn-start">开始晾衣</button>
+          <div class="cover-row">
+            <button class="tactile-btn btn-ivory" id="btn-levels">选关手帐</button>
+            <button class="tactile-btn btn-ivory" id="btn-workshop-home">出题工坊</button>
           </div>
+          <button class="link-btn" id="btn-howto-home">图解规则</button>
         </div>
       </div>
-      <button class="icon-btn home-sound" id="btn-home-sound" aria-label="声音"></button>
     </section>
 
-    <!-- 关卡地图 -->
+    <!-- 选关手帐 -->
     <section class="screen" id="screen-map" hidden>
       <header class="topbar">
-        <button class="icon-btn" id="btn-map-back" aria-label="返回">
-          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
-        </button>
-        <div class="topbar-title">选择关卡</div>
-        <div class="star-total" id="star-total"></div>
+        <button class="token-icon" id="btn-map-back" aria-label="返回封面"></button>
+        <div class="topbar-center">
+          <span class="topbar-title serif">晒衣手帐</span>
+        </div>
+        <div class="stamp-counter" id="stamp-counter"></div>
       </header>
-      <div class="map-scroll" id="map-list"></div>
+
+      <div class="journal-scroll" id="map-list"></div>
     </section>
 
-    <!-- 游戏 -->
+    <!-- 对局页 -->
     <section class="screen" id="screen-play" hidden>
       <header class="topbar">
-        <button class="icon-btn" id="btn-play-back" aria-label="返回">
-          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
-        </button>
-        <div class="topbar-title" id="play-title">第 1 关</div>
-        <button class="icon-btn" id="btn-menu" aria-label="菜单">
-          <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
-        </button>
+        <button class="token-icon" id="btn-play-back" aria-label="返回选关"></button>
+        <div class="topbar-center">
+          <div class="level-kicker" id="play-kicker">卷一 · 01</div>
+          <div class="topbar-title serif" id="play-title">西风拂面</div>
+        </div>
+        <div class="topbar-right">
+          <div class="dry-pill" id="dry-pill">0 / 2</div>
+          <button class="token-icon" id="btn-menu" aria-label="菜单"></button>
+        </div>
       </header>
 
-      <div class="score-row">
-        <div class="score-num"><b id="score-now">0</b><span>/ <i id="score-target">20</i> 分</span></div>
-        <div class="progress" id="progress">
-          <div class="progress-fill" id="progress-fill"></div>
-          <div class="progress-goal" id="progress-goal"></div>
-        </div>
-      </div>
+      <!-- 风向日程牌 -->
+      <div class="wind-schedule" id="wind-schedule"></div>
 
-      <div class="wind-row" id="wind-row"></div>
+      <!-- 3×3 晒衣木架 -->
+      <main class="courtyard-stage">
+        <div class="coach-note" id="coach-note" hidden></div>
 
-      <div class="stage">
-        <div class="coach" id="coach" hidden></div>
-        <div class="board-wrap" id="board-wrap">
-          <div class="wind-side" id="wind-side"></div>
-          <div class="board" id="board"></div>
-          <div class="gust-layer" id="gust-layer"></div>
-        </div>
-        <div class="hint-line" id="hint-line"></div>
-      </div>
-
-      <footer class="tray">
-        <div class="tray-main">
-          <div class="current-card" id="current-card"></div>
-          <div class="tray-side">
-            <div class="queue" id="queue"></div>
-            <div class="tray-actions">
-              <button class="chip-btn" id="btn-ticket"></button>
-              <button class="btn btn-primary btn-confirm" id="btn-confirm" hidden>挂在这里</button>
-            </div>
+        <div class="rack-shell" id="rack-shell">
+          <div class="wind-lanes" id="wind-lanes"></div>
+          <div class="wood-frame">
+            <span class="peg peg-tl"></span>
+            <span class="peg peg-tr"></span>
+            <span class="peg peg-bl"></span>
+            <span class="peg peg-br"></span>
+            <div class="board-grid" id="board"></div>
+            <div class="gust-fx" id="gust-fx"></div>
           </div>
+        </div>
+
+        <p class="whisper-line" id="whisper-line"></p>
+      </main>
+
+      <!-- 底部竹篮队列 + 工具栏 -->
+      <footer class="dock">
+        <div class="basket-strip" id="basket-strip">
+          <div class="next-slot" id="next-slot"></div>
+          <div class="queue-track" id="queue-track"></div>
+        </div>
+
+        <div class="tool-row">
+          <button class="tool-btn" id="btn-undo"></button>
+          <button class="tool-btn" id="btn-restart"></button>
+          <button class="tool-btn is-clip" id="btn-clip" hidden></button>
+          <button class="tool-btn is-accent" id="btn-hint"></button>
         </div>
       </footer>
 
-      <div class="toast" id="toast"></div>
-      <div class="demo-banner" id="demo-banner" hidden>示范中 · 点这里停止</div>
+      <div class="toast-note" id="toast-note" role="status" aria-live="polite"></div>
+      <button class="demo-pill" id="demo-pill" hidden>自动演示中 · 点此停止</button>
     </section>
 
-    <!-- 弹层 -->
-    <div class="layer" id="layer" hidden>
-      <div class="scrim" id="scrim"></div>
-      <div class="sheet" id="sheet"></div>
+    <!-- 统一纸质弹层 -->
+    <div class="modal-layer" id="modal-layer" hidden>
+      <div class="modal-scrim" id="modal-scrim"></div>
+      <div class="paper-dialog" id="paper-dialog"></div>
     </div>
   </div>
 
-  <script type="module" src="app.js?v=3"></script>
+  <script type="module" src="app.js?v=4"></script>
 </body>
 </html>
