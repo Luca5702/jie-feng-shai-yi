@@ -3,28 +3,23 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#F4ECDD" />
+  <meta name="theme-color" content="#F6EFE0" />
   <title>借风晒衣 · 晴日庭院解谜</title>
   <meta name="description" content="借四方晴风，收尽满院衣裳。一款温暖治愈的 3×3 空间时序解谜小游戏。" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Noto+Serif+SC:wght@700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="index.css?v=4" />
+  <link rel="preload" as="image" href="assets/bg_courtyard_portrait.jpg" media="(max-width: 720px)" />
+  <link rel="preload" as="image" href="assets/bg_courtyard_wide.jpg" media="(min-width: 721px)" />
+  <link rel="stylesheet" href="index.css?v=5" />
 </head>
 <body>
-  <!-- Subtle SVG paper grain & sunlit botanical dapple -->
-  <svg class="ambient-dapple" viewBox="0 0 400 300" preserveAspectRatio="xMaxYMin slice" aria-hidden="true">
-    <g fill="#C9BA9E" opacity="0.22">
-      <ellipse cx="355" cy="28" rx="46" ry="18" transform="rotate(-24 355 28)" />
-      <ellipse cx="382" cy="64" rx="42" ry="15" transform="rotate(-12 382 64)" />
-      <ellipse cx="322" cy="58" rx="34" ry="13" transform="rotate(-35 322 58)" />
-      <ellipse cx="36" cy="22" rx="38" ry="14" transform="rotate(22 36 22)" />
-    </g>
-  </svg>
+  <!-- 晴日水彩庭院宣纸背景层（静态柔和衬底，不抢前景视觉焦点） -->
+  <div class="courtyard-bg" aria-hidden="true"></div>
 
   <div id="app">
     <!-- 封面首页 -->
-    <section class="screen" id="screen-home">
+    <section class="screen is-screen-active" id="screen-home">
       <div class="home-top">
         <button class="token-icon" id="btn-home-sound" aria-label="切换声音"></button>
       </div>
@@ -49,24 +44,30 @@
     </section>
 
     <!-- 选关手帐 -->
-    <section class="screen" id="screen-map" hidden>
+    <section class="screen" id="screen-map" aria-hidden="true">
       <header class="topbar">
-        <button class="token-icon" id="btn-map-back" aria-label="返回封面"></button>
+        <div class="topbar-left">
+          <button class="token-icon" id="btn-map-back" aria-label="返回封面"></button>
+        </div>
         <div class="topbar-center">
           <span class="topbar-title serif">晒衣手帐</span>
         </div>
-        <div class="stamp-counter" id="stamp-counter"></div>
+        <div class="topbar-right">
+          <div class="stamp-counter" id="stamp-counter"></div>
+        </div>
       </header>
 
       <div class="journal-scroll" id="map-list"></div>
     </section>
 
     <!-- 对局页 -->
-    <section class="screen" id="screen-play" hidden>
+    <section class="screen" id="screen-play" aria-hidden="true">
       <header class="topbar">
-        <button class="token-icon" id="btn-play-back" aria-label="返回选关"></button>
+        <div class="topbar-left">
+          <button class="token-icon" id="btn-play-back" aria-label="返回选关"></button>
+        </div>
         <div class="topbar-center">
-          <div class="level-kicker" id="play-kicker">卷一 · 01</div>
+          <div class="level-kicker" id="play-kicker">卷一 · 第 01 关</div>
           <div class="topbar-title serif" id="play-title">西风拂面</div>
         </div>
         <div class="topbar-right">
@@ -75,12 +76,14 @@
         </div>
       </header>
 
-      <!-- 风向日程牌 -->
+      <!-- 风向日程牌（固定高度与固定槽位宽度） -->
       <div class="wind-schedule" id="wind-schedule"></div>
 
-      <!-- 3×3 晒衣木架 -->
+      <!-- 3×3 晒衣木架（上下提示槽固定高度，木架零位移） -->
       <main class="courtyard-stage">
-        <div class="coach-note" id="coach-note" hidden></div>
+        <div class="stage-top-slot">
+          <div class="coach-note" id="coach-note"></div>
+        </div>
 
         <div class="rack-shell" id="rack-shell">
           <div class="wind-lanes" id="wind-lanes"></div>
@@ -94,13 +97,18 @@
           </div>
         </div>
 
-        <p class="whisper-line" id="whisper-line"></p>
+        <div class="stage-bottom-slot">
+          <p class="whisper-line" id="whisper-line"></p>
+        </div>
       </main>
 
-      <!-- 底部竹篮队列 + 工具栏 -->
+      <!-- 底部竹篮队列 + 工具栏（固定高度，杜绝跳动） -->
       <footer class="dock">
         <div class="basket-strip" id="basket-strip">
-          <div class="next-slot" id="next-slot"></div>
+          <div class="next-slot" id="next-slot">
+            <div class="next-icon-box" id="next-icon-box"></div>
+            <div class="next-meta" id="next-meta"></div>
+          </div>
           <div class="queue-track" id="queue-track"></div>
         </div>
 
@@ -123,6 +131,6 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>

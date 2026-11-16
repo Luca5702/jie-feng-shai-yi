@@ -1,4 +1,4 @@
-// 《借风晒衣》 · 晴日绘本手帐版主控制器
+// 《借风晒衣》 · 晴日绘本手帐版主控制器（零布局抖动 · 持久 DOM 与平滑过渡架构）
 // 集成：确定性规则机 (engine.js) + 精确状态空间求解器 (solver.js) + 程序化出题器 (generator.js) + 绘本美术组件 (art.js)
 
 import {
@@ -26,6 +26,7 @@ import {
 import { sound } from './audio.js';
 
 const SAVE_KEY = 'jggo_storybook_v4';
+const WIND_ROT = { W: 0, S: -90, E: 180, N: 90 };
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const playSfx = (fn) => {
@@ -55,6 +56,7 @@ const GUIDED_COACH = {
 class SunlitLaundryGame {
   constructor() {
     this.save = this.loadSave();
+    this.activeScreen = 'home';
     this.level = null;
     this.levelIndex = 0;
     this.isWorkshop = false;
@@ -63,14 +65,27 @@ class SunlitLaundryGame {
     this.history = [];
     this.liftFrom = null; // { r, c } when moving an existing garment
     this.hoverCell = null; // { r, c } desktop hover preview
-    this.hintSpot = null; // { r, c } or { from, to }
+    this.hintSpot = null; // { type, r, c }
     this.busy = false;
     this.demoToken = 0;
     this.demoRunning = false;
     this.dialogLocked = false;
+    this.closeModalTimer = null;
+    this.sessionToken = 0;
+
+    // 持久 DOM 引用与渲染签名缓存（避免无意义的 DOM 重建与重排闪烁）
+    this.cellRefs = [];
+    this.laneRefs = [];
+    this.windChipRefs = [];
+    this.lastNextKey = '';
+    this.lastQueueKey = '';
+    this.lastCoachHtml = '';
+    this.lastWhisperHtml = '';
 
     sound.sfxEnabled = this.save.sfx !== false;
     this.initStaticIcons();
+    this.initBoardDOM();
+    this.initWindLanesDOM();
     this.renderCoverScene();
     this.bindEvents();
     this.showScreen('home');
@@ -101,6 +116,104 @@ class SunlitLaundryGame {
     $('btn-restart').innerHTML = `${ICONS.restart}<span>重来</span>`;
     $('btn-hint').innerHTML = `${ICONS.hint}<span>提示</span>`;
     this.syncSoundButton();
+  }
+
+  /* 初始化常驻 3×3 棋盘节点：游戏全程零销毁，杜绝悬停或落子导致的动画重置 */
+  initBoardDOM() {
+    const board = $('board');
+    board.innerHTML = '';
+    this.cellRefs = [];
+
+    for (let r = 0; r < 3; r++) {
+      const row = [];
+      for (let c = 0; c < 3; c++) {
+        const cellEl = document.createElement('div');
+        cellEl.className = 'cell is-empty';
+        cellEl.dataset.r = String(r);
+        cellEl.dataset.c = String(c);
+
+        const entityEl = document.createElement('div');
+        entityEl.className = 'cell-entity';
+
+        const ghostEl = document.createElement('div');
+        ghostEl.className = 'cell-ghost';
+
+        const badgeEl = document.createElement('span');
+        badgeEl.className = 'fx-badge';
+
+        const guideEl = document.createElement('div');
+        guideEl.className = 'cell-guide';
+        guideEl.innerHTML = ICONS.hand;
+
+        cellEl.append(entityEl, ghostEl, badgeEl, guideEl);
+        board.appendChild(cellEl);
+
+        row.push({
+          cellEl,
+          entityEl,
+          ghostEl,
+          badgeEl,
+          guideEl,
+          sig: '',
+          ghostSig: '',
+        });
+      }
+      this.cellRefs.push(row);
+    }
+  }
+
+  /* 初始化常驻架边风向标节点：换风时平滑滑移与最短角旋转 */
+  initWindLanesDOM() {
+    const lanesEl = $('wind-lanes');
+    lanesEl.innerHTML = '';
+    this.laneRefs = [];
+
+    for (let i = 0; i < 3; i++) {
+      const tokenEl = document.createElement('div');
+      tokenEl.className = 'lane-token is-instant';
+      tokenEl.innerHTML = svgWindArrow('W');
+      const arrowEl = tokenEl.querySelector('.wind-arrow-ic');
+      lanesEl.appendChild(tokenEl);
+      this.laneRefs.push({ tokenEl, arrowEl, rot: 0, initialized: false });
+    }
+  }
+
+  /* 每关加载时构建等宽风向日程牌槽位 */
+  initWindScheduleDOM() {
+    const wrap = $('wind-schedule');
+    wrap.innerHTML = '';
+    this.windChipRefs = [];
+    const s = this.state;
+
+    s.winds.forEach((dir) => {
+      const meta = WIND_META[dir];
+      const chipEl = document.createElement('div');
+      chipEl.className = 'w-chip';
+      chipEl.title = `${meta.name}（每挂 ${s.gustEvery} 件吹一次）`;
+
+      const pipsHtml = Array.from({ length: s.gustEvery }, () => '<i class="w-pip"></i>').join('');
+      chipEl.innerHTML = `${svgWindArrow(dir)}<span class="w-name">${meta.name}</span><span class="w-pips">${pipsHtml}</span>`;
+      wrap.appendChild(chipEl);
+
+      this.windChipRefs.push({
+        chipEl,
+        pipEls: Array.from(chipEl.querySelectorAll('.w-pip')),
+      });
+    });
+  }
+
+  clearBoardTransientFx() {
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const { cellEl, entityEl } = this.cellRefs[r][c];
+        cellEl.classList.remove('anim-hit', 'anim-collect');
+        entityEl.classList.remove('anim-place');
+        entityEl.style.transition = '';
+        entityEl.style.transform = '';
+        cellEl.querySelectorAll('.collect-tag').forEach((n) => n.remove());
+      }
+    }
+    $('gust-fx').innerHTML = '';
   }
 
   syncSoundButton() {
@@ -183,23 +296,34 @@ class SunlitLaundryGame {
     });
 
     window.addEventListener('resize', () => {
-      if (this.state && !$('screen-play').hidden) this.renderWindLanes();
+      if (this.state && this.activeScreen === 'play') {
+        this.renderWindLanes(null, { instant: true });
+      }
     });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !$('modal-layer').hidden && !this.dialogLocked) {
         this.closeModal();
-      } else if ((e.key === 'z' || e.key === 'Z') && !$('screen-play').hidden && $('modal-layer').hidden) {
+      } else if (
+        (e.key === 'z' || e.key === 'Z') &&
+        this.activeScreen === 'play' &&
+        $('modal-layer').hidden
+      ) {
         this.undoStep();
       }
     });
   }
 
   showScreen(name) {
+    this.sessionToken += 1;
+    this.activeScreen = name;
     for (const key of ['home', 'map', 'play']) {
-      $(`screen-${key}`).hidden = key !== name;
+      const el = $(`screen-${key}`);
+      const active = key === name;
+      el.classList.toggle('is-screen-active', active);
+      el.setAttribute('aria-hidden', active ? 'false' : 'true');
     }
-    this.closeModal();
+    this.closeModal({ immediate: true });
     if (name === 'map') this.renderJournalMap();
     if (name === 'home') this.syncSoundButton();
   }
@@ -265,7 +389,9 @@ class SunlitLaundryGame {
   }
 
   loadLevelObject(levelObj) {
+    this.sessionToken += 1;
     this.stopDemo();
+    this.clearBoardTransientFx();
     this.level = levelObj;
     this.state = createInitialState(levelObj);
     this.history = [];
@@ -273,6 +399,12 @@ class SunlitLaundryGame {
     this.hoverCell = null;
     this.hintSpot = null;
     this.busy = false;
+    this.lastNextKey = '';
+    this.lastQueueKey = '';
+    this.lastCoachHtml = '';
+    this.lastWhisperHtml = '';
+
+    for (const ref of this.laneRefs) ref.initialized = false;
 
     this.showScreen('play');
     if (this.isWorkshop) {
@@ -283,7 +415,9 @@ class SunlitLaundryGame {
       $('play-kicker').textContent = `卷${chNames[(levelObj.chapter || 1) - 1]} · 第 ${String(levelObj.num).padStart(2, '0')} 关`;
       $('play-title').textContent = levelObj.title;
     }
-    this.renderAll();
+
+    this.initWindScheduleDOM();
+    this.renderAll({ instantLanes: true });
   }
 
   restartCurrentLevel() {
@@ -373,7 +507,6 @@ class SunlitLaundryGame {
       this.showToast('移衣木夹已用完');
       return;
     }
-    // 自动选中架上第一件可移动衣物或提示点选
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
         if (isGarmentCell(this.state.grid[r][c])) {
@@ -395,7 +528,10 @@ class SunlitLaundryGame {
       this.state = res.state;
       this.liftFrom = null;
       playSfx(() => sound.playMoveTicket());
-      this.renderAll();
+      this.renderAll({
+        movedFrom: { r: fromR, c: fromC },
+        movedTo: { r: toR, c: toC },
+      });
     } catch (err) {
       this.showToast(err.message);
     }
@@ -404,6 +540,7 @@ class SunlitLaundryGame {
   async executePlacement(r, c) {
     if (this.busy) return;
     this.busy = true;
+    const session = this.sessionToken;
     const snapshot = structuredClone(this.state);
     const placingType = this.state.queue[this.state.placedCount];
 
@@ -421,28 +558,33 @@ class SunlitLaundryGame {
     playSfx(() => sound.playHangConfirm(placingType === 'H'));
 
     if (res.gustTriggered) {
-      // 先呈现刚挂上瞬间，再吹风结算
+      // 先呈现刚挂上瞬间（含衣篮平滑前移），再吹风结算
       const preGustGrid = previewActionForecast(snapshot, { type: 'place', r, c }).tempGrid;
       this.state = {
         ...res.state,
         grid: preGustGrid,
+        status: 'playing',
         driedCount: snapshot.driedCount,
         gustIndex: snapshot.gustIndex,
       };
-      this.renderAll();
+      this.renderAll({ placedAt: { r, c }, advanceQueue: true });
       await sleep(280);
+      if (this.sessionToken !== session) return;
       await this.animateWindGust(res.gustTriggered);
+      if (this.sessionToken !== session) return;
+      this.clearBoardTransientFx();
       this.state = res.state;
       this.renderAll();
     } else {
       this.state = res.state;
-      this.renderAll();
+      this.renderAll({ placedAt: { r, c }, advanceQueue: true });
     }
 
     this.busy = false;
 
     if (this.state.status !== 'playing') {
       await sleep(520);
+      if (this.sessionToken !== session) return;
       if (this.demoRunning) {
         this.demoRunning = false;
         $('demo-pill').hidden = true;
@@ -466,16 +608,16 @@ class SunlitLaundryGame {
 
     await sleep(220);
     for (const hit of gust.hitRecords) {
-      const cellEl = $('board').querySelector(`.cell[data-r="${hit.r}"][data-c="${hit.c}"]`);
-      if (!cellEl) continue;
+      const ref = this.cellRefs[hit.r]?.[hit.c];
+      if (!ref) continue;
       if (hit.collected) {
-        cellEl.classList.add('anim-collect');
+        ref.cellEl.classList.add('anim-collect');
         const badge = document.createElement('span');
         badge.className = 'collect-tag';
         badge.textContent = '晒干';
-        cellEl.appendChild(badge);
+        ref.cellEl.appendChild(badge);
       } else {
-        cellEl.classList.add('anim-hit');
+        ref.cellEl.classList.add('anim-hit');
       }
     }
     await sleep(560);
@@ -484,6 +626,7 @@ class SunlitLaundryGame {
 
   undoStep() {
     if (this.busy || this.demoRunning || this.history.length === 0) return;
+    this.clearBoardTransientFx();
     this.state = this.history.pop();
     this.liftFrom = null;
     this.hintSpot = null;
@@ -539,44 +682,49 @@ class SunlitLaundryGame {
     };
   }
 
-  /* ---------------- 渲染 ---------------- */
-  renderAll() {
+  /* ---------------- 零抖动增量渲染 ---------------- */
+  renderAll(opts = {}) {
     this.renderHeaderCounter();
     this.renderWindSchedule();
-    this.renderBoardAndLanes();
-    this.renderDock();
+    this.renderBoardAndLanes(opts);
+    this.renderDock({ advanceAnim: Boolean(opts.advanceQueue) });
     this.renderCoachAndWhisper();
   }
 
   renderHeaderCounter() {
     const { driedCount, totalGarments } = this.state;
     const pill = $('dry-pill');
-    pill.innerHTML = `${svgSunStamp(driedCount === totalGarments)}<span>${driedCount} / ${totalGarments}</span>`;
-    pill.classList.toggle('is-done', driedCount === totalGarments);
+    const done = driedCount === totalGarments;
+    pill.innerHTML = `${svgSunStamp(done)}<span>${driedCount} / ${totalGarments}</span>`;
+    pill.classList.toggle('is-done', done);
   }
 
   renderWindSchedule() {
     const s = this.state;
+    if (this.windChipRefs.length !== s.winds.length) {
+      this.initWindScheduleDOM();
+    }
     const placedInCycle = s.placedCount % s.gustEvery;
-    $('wind-schedule').innerHTML = s.winds
-      .map((dir, idx) => {
-        const meta = WIND_META[dir];
-        if (idx === s.gustIndex && this.isPlaying) {
-          const pips = Array.from(
-            { length: s.gustEvery },
-            (_, k) => `<i class="w-pip${k < placedInCycle ? ' filled' : ''}"></i>`
-          ).join('');
-          return `<div class="w-chip is-active">${svgWindArrow(dir)}<span>${meta.name}</span><span class="w-pips" title="挂满即吹风">${pips}</span></div>`;
-        }
-        return `<div class="w-chip${idx < s.gustIndex ? ' is-done' : ''}" title="${meta.name}">${svgWindArrow(dir)}<span>${meta.short}</span></div>`;
-      })
-      .join('');
+    const playing = this.isPlaying;
+
+    this.windChipRefs.forEach(({ chipEl, pipEls }, idx) => {
+      const isDone = idx < s.gustIndex || !playing;
+      const isActive = idx === s.gustIndex && playing;
+
+      chipEl.classList.toggle('is-done', isDone && !isActive);
+      chipEl.classList.toggle('is-active', isActive);
+
+      pipEls.forEach((pipEl, k) => {
+        const filled = isDone ? true : isActive ? k < placedInCycle : false;
+        pipEl.classList.toggle('filled', filled);
+      });
+    });
   }
 
   computeDisplayForecast() {
     const s = this.state;
     const windDir = s.winds[s.gustIndex] || null;
-    if (this.hoverCell && this.isPlaying) {
+    if (this.hoverCell && this.isPlaying && !this.guidedStepAction) {
       const { r, c } = this.hoverCell;
       if (!s.grid[r][c]) {
         if (this.liftFrom) {
@@ -598,135 +746,264 @@ class SunlitLaundryGame {
     };
   }
 
-  renderBoardAndLanes() {
+  renderBoardAndLanes({
+    placedAt = null,
+    movedFrom = null,
+    movedTo = null,
+    instantLanes = false,
+  } = {}) {
+    const s = this.state;
     const { tempGrid, forecast } = this.computeDisplayForecast();
     const shadowSet = new Set(forecast.shadowEmptyCells.map((x) => `${x.r},${x.c}`));
     const exposedSet = new Set(forecast.exposedEmptyCells.map((x) => `${x.r},${x.c}`));
     const guided = this.guidedStepAction;
+    const hoverValidMoveDest = Boolean(
+      this.liftFrom &&
+        this.hoverCell &&
+        this.isPlaying &&
+        !s.grid[this.hoverCell.r][this.hoverCell.c]
+    );
 
-    let html = '';
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
         const key = `${r},${c}`;
-        const cell = tempGrid[r][c];
-        const cls = ['cell'];
-        let inner = '';
+        const ref = this.cellRefs[r][c];
+        const { cellEl, entityEl, ghostEl, badgeEl, guideEl } = ref;
+        const realCell = s.grid[r][c];
+        const tempCell = tempGrid[r][c];
 
-        if (!cell) {
-          cls.push('is-empty');
-          if (shadowSet.has(key)) cls.push('is-shadow');
-          else if (exposedSet.has(key)) cls.push('is-exposed');
-          if (this.liftFrom) cls.push('is-move-dest');
-        } else if (isObstacleCell(cell)) {
-          cls.push('has-tree');
-          inner = `<div class="tree-art">${svgKumquatTree()}</div>`;
-        } else if (isGarmentCell(cell)) {
-          cls.push('has-garment');
-          inner = renderGarmentMarkup(cell.type, cell.wetness, { ghost: Boolean(cell.isPreview) });
-          const fInfo = forecast.cellMap[key];
-          if (fInfo && this.isPlaying) {
-            const label =
-              fInfo.status === 'collect' ? '收' : fInfo.status === 'hit' ? '-1' : '挡';
-            inner += `<span class="fx-badge ${fInfo.status}">${label}</span>`;
-          }
-        }
+        // 1. 更新实体层（仅在真实格子内容或湿度改变时更新 SVG，悬停时完全不动）
+        const nextSig = !realCell
+          ? ''
+          : isObstacleCell(realCell)
+          ? 'P'
+          : `G:${realCell.id ?? ''}:${realCell.type}:${realCell.wetness}`;
 
-        if (this.liftFrom && this.liftFrom.r === r && this.liftFrom.c === c) {
-          cls.push('is-lifted');
-        }
-        if (this.hintSpot && this.hintSpot.r === r && this.hintSpot.c === c) {
-          cls.push('is-hint-spot');
-        }
-        if (guided) {
-          if (guided.type === 'place' && guided.at[0] === r && guided.at[1] === c) {
-            cls.push('is-guide-target');
-            inner += ICONS.hand;
+        if (ref.sig !== nextSig) {
+          ref.sig = nextSig;
+          if (!realCell) {
+            entityEl.innerHTML = '';
+          } else if (isObstacleCell(realCell)) {
+            entityEl.innerHTML = `<div class="tree-art">${svgKumquatTree()}</div>`;
           } else {
-            cls.push('is-guide-locked');
+            entityEl.innerHTML = renderGarmentMarkup(realCell.type, realCell.wetness);
           }
         }
 
-        html += `<div class="${cls.join(' ')}" data-r="${r}" data-c="${c}">${inner}</div>`;
+        // 单次落子柔和摆正过渡
+        if (placedAt && placedAt.r === r && placedAt.c === c && realCell) {
+          entityEl.classList.remove('anim-place');
+          void entityEl.offsetWidth;
+          entityEl.classList.add('anim-place');
+        }
+
+        // 木夹移衣跨格平滑滑移过渡（FLIP）
+        if (movedFrom && movedTo && movedTo.r === r && movedTo.c === c && realCell) {
+          const fromEl = this.cellRefs[movedFrom.r]?.[movedFrom.c]?.cellEl;
+          if (fromEl) {
+            const r1 = fromEl.getBoundingClientRect();
+            const r2 = cellEl.getBoundingClientRect();
+            const dx = r1.left - r2.left;
+            const dy = r1.top - r2.top;
+            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+              entityEl.style.transition = 'none';
+              entityEl.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(1.04)`;
+              void entityEl.offsetWidth;
+              entityEl.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+              entityEl.style.transform = '';
+            }
+          }
+        }
+
+        // 2. 更新悬停预览虚影层（纯透明度过渡，不触发任何布局变化）
+        const isGhost = Boolean(tempCell && tempCell.isPreview);
+        if (isGhost) {
+          const gSig = `${tempCell.type}:${tempCell.wetness}`;
+          if (ref.ghostSig !== gSig) {
+            ref.ghostSig = gSig;
+            ghostEl.innerHTML = renderGarmentMarkup(tempCell.type, tempCell.wetness, {
+              ghost: true,
+            });
+          }
+          ghostEl.classList.add('is-visible');
+        } else {
+          ghostEl.classList.remove('is-visible');
+        }
+
+        // 3. 更新风效角标（收 / -1 / 挡）
+        const fInfo = this.isPlaying && isGarmentCell(tempCell) ? forecast.cellMap[key] : null;
+        if (fInfo) {
+          const label =
+            fInfo.status === 'collect' ? '收' : fInfo.status === 'hit' ? '-1' : '挡';
+          badgeEl.textContent = label;
+          badgeEl.className = `fx-badge is-visible ${fInfo.status}`;
+        } else {
+          badgeEl.classList.remove('is-visible');
+        }
+
+        // 4. 更新引导手势与格子状态类名（保留吹风瞬态类）
+        const isGuideTarget = Boolean(
+          guided && guided.type === 'place' && guided.at[0] === r && guided.at[1] === c
+        );
+        guideEl.classList.toggle('is-visible', isGuideTarget);
+
+        const isLifted = Boolean(this.liftFrom && this.liftFrom.r === r && this.liftFrom.c === c);
+        const isHintSpot = Boolean(this.hintSpot && this.hintSpot.r === r && this.hintSpot.c === c);
+
+        cellEl.classList.toggle('is-empty', !realCell);
+        cellEl.classList.toggle('has-tree', isObstacleCell(realCell));
+        cellEl.classList.toggle('has-garment', isGarmentCell(realCell));
+        cellEl.classList.toggle(
+          'can-lift',
+          isGarmentCell(realCell) && s.tickets > 0 && !guided && this.isPlaying
+        );
+        cellEl.classList.toggle('is-shadow', !tempCell && shadowSet.has(key));
+        cellEl.classList.toggle(
+          'is-exposed',
+          !tempCell && !shadowSet.has(key) && exposedSet.has(key)
+        );
+        cellEl.classList.toggle('is-move-dest', !realCell && Boolean(this.liftFrom));
+        cellEl.classList.toggle('is-lifted', isLifted);
+        cellEl.classList.toggle('is-preview-away', isLifted && hoverValidMoveDest);
+        cellEl.classList.toggle('is-hint-spot', isHintSpot);
+        cellEl.classList.toggle('is-guide-target', isGuideTarget);
+        cellEl.classList.toggle('is-guide-locked', Boolean(guided && !isGuideTarget));
       }
     }
 
-    $('board').innerHTML = html;
-    this.renderWindLanes(forecast);
+    this.renderWindLanes(forecast, { instant: instantLanes });
   }
 
-  renderWindLanes(forecastArg) {
+  renderWindLanes(forecastArg, { instant = false } = {}) {
     const lanesEl = $('wind-lanes');
     const s = this.state;
     const windDir = s.winds[s.gustIndex];
     if (!windDir || !this.isPlaying) {
-      lanesEl.innerHTML = '';
-      lanesEl.className = 'wind-lanes';
+      lanesEl.classList.add('is-hidden');
       return;
     }
 
+    lanesEl.classList.remove('is-hidden');
     const forecast = forecastArg || computeWindForecast(s.grid, windDir);
-    lanesEl.className = `wind-lanes wind-${windDir}`;
 
     const shellW = $('rack-shell').clientWidth || 300;
     const framePad = 15; // 10px wood + 5px grid pad
     const gap = 7;
     const cellSize = (shellW - framePad * 2 - gap * 2) / 3;
     const offset = 28;
+    const span = shellW + offset * 2;
+    const tokenSize = 24;
+    const targetRot = WIND_ROT[windDir] ?? 0;
 
-    let html = '';
     for (let i = 0; i < 3; i++) {
-      const center = offset + framePad + i * (cellSize + gap) + cellSize / 2 - 12;
-      let style = '';
-      if (windDir === 'W') style = `left:0px;top:${center}px`;
-      if (windDir === 'E') style = `right:0px;top:${center}px`;
-      if (windDir === 'N') style = `top:0px;left:${center}px`;
-      if (windDir === 'S') style = `bottom:0px;left:${center}px`;
+      const ref = this.laneRefs[i];
+      const { tokenEl, arrowEl } = ref;
+      const center = offset + framePad + i * (cellSize + gap) + cellSize / 2 - tokenSize / 2;
 
-      const idle = forecast.emptyScanlines.includes(i) ? ' is-idle' : '';
-      html += `<div class="lane-token${idle}" style="${style}">${svgWindArrow(windDir)}</div>`;
+      let x = 0;
+      let y = 0;
+      if (windDir === 'W') {
+        x = 0;
+        y = center;
+      } else if (windDir === 'E') {
+        x = span - tokenSize;
+        y = center;
+      } else if (windDir === 'N') {
+        x = center;
+        y = 0;
+      } else if (windDir === 'S') {
+        x = center;
+        y = span - tokenSize;
+      }
+
+      const useInstant = instant || !ref.initialized;
+      if (useInstant) {
+        tokenEl.classList.add('is-instant');
+        ref.rot = targetRot;
+      } else {
+        // 最短角度旋转，避免 180° -> -90° 反向转大圈
+        const delta = ((targetRot - ref.rot + 540) % 360) - 180;
+        ref.rot += delta;
+      }
+
+      tokenEl.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      arrowEl.style.transform = `rotate(${ref.rot}deg)`;
+      tokenEl.classList.toggle('is-idle', forecast.emptyScanlines.includes(i));
+      ref.initialized = true;
+
+      if (useInstant) {
+        void tokenEl.offsetWidth;
+        tokenEl.classList.remove('is-instant');
+      }
     }
-    lanesEl.innerHTML = html;
   }
 
-  renderDock() {
+  renderDock({ advanceAnim = false } = {}) {
     const s = this.state;
-    const nextSlot = $('next-slot');
+    const iconBox = $('next-icon-box');
+    const metaBox = $('next-meta');
 
-    if (!this.isPlaying) {
-      nextSlot.innerHTML = `<div class="next-meta"><span class="kicker">衣篮状态</span><span class="name">已挂完</span></div>`;
-    } else {
-      const curType = s.queue[s.placedCount];
-      const meta = GARMENT_META[curType];
-      nextSlot.innerHTML = `
-        ${renderGarmentMarkup(curType, meta.initialWetness, { drops: false, pins: false })}
-        <div class="next-meta">
+    const nextKey = this.isPlaying
+      ? `play:${s.placedCount}:${s.queue[s.placedCount]}`
+      : `done:${s.status}`;
+
+    if (this.lastNextKey !== nextKey) {
+      this.lastNextKey = nextKey;
+      if (!this.isPlaying) {
+        iconBox.innerHTML = svgSunStamp(s.status === 'won');
+        metaBox.innerHTML = `
+          <span class="kicker">衣篮状态</span>
+          <span class="name">已挂完</span>
+          <span class="sub">${s.status === 'won' ? '尽数干透' : '等待结算'}</span>
+        `;
+      } else {
+        const curType = s.queue[s.placedCount];
+        const meta = GARMENT_META[curType];
+        iconBox.innerHTML = renderGarmentMarkup(curType, meta.initialWetness, {
+          drops: false,
+          pins: false,
+        });
+        metaBox.innerHTML = `
           <span class="kicker">待挂衣物</span>
           <span class="name">${meta.name}</span>
           <span class="sub">${meta.initialWetness} 滴水</span>
-        </div>
-      `;
+        `;
+      }
+
+      if (advanceAnim) {
+        iconBox.classList.remove('anim-slot-in');
+        void iconBox.offsetWidth;
+        iconBox.classList.add('anim-slot-in');
+      }
     }
 
-    // 队列轨迹（含阵风分隔标）
-    let track = '';
-    for (let i = s.placedCount; i < s.queue.length; i++) {
-      if (i > s.placedCount) {
-        track += `<div class="q-garment" title="${GARMENT_META[s.queue[i]].name}">${renderGarmentMarkup(
-          s.queue[i],
-          1,
-          { drops: false, pins: false }
-        )}</div>`;
-      }
-      if ((i + 1) % s.gustEvery === 0) {
-        const wDir = s.winds[(i + 1) / s.gustEvery - 1];
-        if (wDir) {
-          track += `<div class="q-gust" title="${WIND_META[wDir].name}">${svgWindArrow(wDir)}</div>`;
+    // 队列轨迹（含阵风分隔标与平滑前移过渡）
+    const queueKey = `${s.placedCount}:${this.isPlaying}`;
+    if (this.lastQueueKey !== queueKey) {
+      this.lastQueueKey = queueKey;
+      let items = '';
+      for (let i = s.placedCount; i < s.queue.length; i++) {
+        if (i > s.placedCount) {
+          items += `<div class="q-garment" title="${GARMENT_META[s.queue[i]].name}">${renderGarmentMarkup(
+            s.queue[i],
+            1,
+            { drops: false, pins: false }
+          )}</div>`;
+        }
+        if ((i + 1) % s.gustEvery === 0) {
+          const wDir = s.winds[(i + 1) / s.gustEvery - 1];
+          if (wDir) {
+            items += `<div class="q-gust" title="${WIND_META[wDir].name}">${svgWindArrow(wDir)}</div>`;
+          }
         }
       }
+
+      const content =
+        items ||
+        `<span class="q-done-msg">${this.isPlaying ? '挂好这件即吹最后一阵风' : '全部阵风已结算完毕'}</span>`;
+      const cls = advanceAnim ? 'queue-track-inner is-advancing' : 'queue-track-inner';
+      $('queue-track').innerHTML = `<div class="${cls}">${content}</div>`;
     }
-    $('queue-track').innerHTML =
-      track ||
-      `<span class="q-done-msg">${this.isPlaying ? '挂好这件即吹最后一阵风' : '全部阵风已结算完毕'}</span>`;
 
     $('btn-undo').disabled = this.history.length === 0 || !this.isPlaying;
     $('btn-restart').disabled = this.history.length === 0 && s.status === 'playing';
@@ -737,9 +1014,7 @@ class SunlitLaundryGame {
       clipBtn.hidden = false;
       clipBtn.classList.toggle('is-active', Boolean(this.liftFrom));
       clipBtn.disabled = !this.isPlaying || (!this.liftFrom && s.tickets <= 0);
-      clipBtn.innerHTML = this.liftFrom
-        ? `<span>取消移衣</span>`
-        : `${ICONS.clip}<span>木夹 ×${s.tickets}</span>`;
+      clipBtn.innerHTML = `${ICONS.clip}<span>${this.liftFrom ? '取消移衣' : `木夹 ×${s.tickets}`}</span>`;
     } else {
       clipBtn.hidden = true;
     }
@@ -750,34 +1025,45 @@ class SunlitLaundryGame {
     const whisperEl = $('whisper-line');
     const step = this.state.actionLog.length;
 
+    let coachHtml = '';
     const lines = !this.isWorkshop && GUIDED_COACH[this.level.id];
     if (lines && lines[step] && this.isPlaying && !this.demoRunning) {
-      coachEl.hidden = false;
-      coachEl.innerHTML = lines[step];
+      coachHtml = lines[step];
     } else if (
       !this.isWorkshop &&
       ['L6', 'L11', 'L16'].includes(this.level.id) &&
       step === 0 &&
       this.isPlaying
     ) {
-      coachEl.hidden = false;
-      coachEl.innerHTML = this.level.subtitle;
-    } else {
-      coachEl.hidden = true;
+      coachHtml = this.level.subtitle;
     }
 
+    if (coachHtml) {
+      if (this.lastCoachHtml !== coachHtml) {
+        this.lastCoachHtml = coachHtml;
+        coachEl.innerHTML = coachHtml;
+      }
+      coachEl.classList.add('is-visible');
+    } else {
+      coachEl.classList.remove('is-visible');
+    }
+
+    let whisperHtml = '';
     if (!this.isPlaying) {
-      whisperEl.innerHTML =
+      whisperHtml =
         this.state.status === 'won' ? '满架衣裳尽数晒干！' : '还有衣物没干透，试试撤回调整位置';
-      return;
+    } else if (this.liftFrom) {
+      whisperHtml = '点选任意<b>空位</b>将衣服夹过去（不消耗挂衣步数）';
+    } else {
+      const remainToGust = this.state.gustEvery - (this.state.placedCount % this.state.gustEvery);
+      const wind = WIND_META[this.state.winds[this.state.gustIndex]];
+      whisperHtml = `再挂 <b>${remainToGust}</b> 件吹<b>${wind.name}</b> · 斜纹格为当前背风处`;
     }
-    if (this.liftFrom) {
-      whisperEl.innerHTML = '点选任意<b>空位</b>将衣服夹过去（不消耗挂衣步数）';
-      return;
+
+    if (this.lastWhisperHtml !== whisperHtml) {
+      this.lastWhisperHtml = whisperHtml;
+      whisperEl.innerHTML = whisperHtml;
     }
-    const remainToGust = this.state.gustEvery - (this.state.placedCount % this.state.gustEvery);
-    const wind = WIND_META[this.state.winds[this.state.gustIndex]];
-    whisperEl.innerHTML = `再挂 <b>${remainToGust}</b> 件吹<b>${wind.name}</b> · 斜纹格为当前背风处`;
   }
 
   /* ---------------- 提示与弹层 ---------------- */
@@ -790,14 +1076,29 @@ class SunlitLaundryGame {
   }
 
   openModal(html, { locked = false } = {}) {
+    clearTimeout(this.closeModalTimer);
     this.dialogLocked = locked;
+    const layer = $('modal-layer');
+    layer.classList.remove('is-closing');
     $('paper-dialog').innerHTML = html;
-    $('modal-layer').hidden = false;
+    layer.hidden = false;
   }
 
-  closeModal() {
-    $('modal-layer').hidden = true;
+  closeModal({ immediate = false } = {}) {
+    const layer = $('modal-layer');
+    clearTimeout(this.closeModalTimer);
     this.dialogLocked = false;
+    if (layer.hidden) return;
+    if (immediate) {
+      layer.classList.remove('is-closing');
+      layer.hidden = true;
+      return;
+    }
+    layer.classList.add('is-closing');
+    this.closeModalTimer = setTimeout(() => {
+      layer.hidden = true;
+      layer.classList.remove('is-closing');
+    }, 160);
   }
 
   openMenuModal() {
@@ -809,8 +1110,8 @@ class SunlitLaundryGame {
         <button class="menu-row" data-act="demo">${ICONS.hint}<span>观看过关演示</span></button>
         <button class="menu-row" data-act="rules">${ICONS.workshop}<span>图解晒衣规则</span></button>
         <button class="menu-row" data-act="workshop">${ICONS.clip}<span>出题工坊（随机新题）</span></button>
-        <button class="menu-row" data-act="sfx">${sound.sfxEnabled ? ICONS.soundOn : ICONS.soundOff}<span>庭院音效</span><span class="menu-val">${sound.sfxEnabled ? '开启' : '关闭'}</span></button>
-        <button class="menu-row" data-act="bgm">${ICONS.soundOn}<span>午后微风环境音</span><span class="menu-val">${sound.bgmEnabled ? '开启' : '关闭'}</span></button>
+        <button class="menu-row" data-act="sfx"><span class="menu-ic" id="mn-sfx-ic">${sound.sfxEnabled ? ICONS.soundOn : ICONS.soundOff}</span><span>庭院音效</span><span class="menu-val" id="mn-sfx-val">${sound.sfxEnabled ? '开启' : '关闭'}</span></button>
+        <button class="menu-row" data-act="bgm"><span class="menu-ic">${ICONS.soundOn}</span><span>午后微风环境音</span><span class="menu-val" id="mn-bgm-val">${sound.bgmEnabled ? '开启' : '关闭'}</span></button>
       </div>
       <div class="dialog-actions">
         <button class="tactile-btn btn-ivory" id="mn-close">继续晾衣</button>
@@ -835,16 +1136,17 @@ class SunlitLaundryGame {
             this.save.sfx = sound.toggleSfx();
             this.persist();
             this.syncSoundButton();
-            this.openMenuModal();
+            $('mn-sfx-ic').innerHTML = sound.sfxEnabled ? ICONS.soundOn : ICONS.soundOff;
+            $('mn-sfx-val').textContent = sound.sfxEnabled ? '开启' : '关闭';
           } else if (act === 'bgm') {
             sound.toggleBgm();
-            this.openMenuModal();
+            $('mn-bgm-val').textContent = sound.bgmEnabled ? '开启' : '关闭';
           }
         })
       );
   }
 
-  openRulesModal(page = 0) {
+  openRulesModal(startPage = 0) {
     const pages = [
       {
         title: '一 · 顺风只吹第一件',
@@ -866,62 +1168,89 @@ class SunlitLaundryGame {
                 <div class="mini-g" style="width:52px;height:52px">${svgSunStamp(true)}</div>`,
       },
     ];
-    const cur = pages[page];
-    const isLast = page === pages.length - 1;
 
+    let curIdx = startPage;
     this.openModal(`
-      <h2>${cur.title}</h2>
-      <div class="rule-box">
-        <div class="rule-illus">${cur.illus}</div>
-        <p class="dialog-sub" style="margin:0">${cur.desc}</p>
+      <h2 id="rl-title"></h2>
+      <div class="rule-box" id="rl-box">
+        <div class="rule-illus" id="rl-illus"></div>
+        <p class="dialog-sub" id="rl-desc" style="margin:0"></p>
       </div>
-      <div class="rule-dots">${pages.map((_, i) => `<i class="${i === page ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="rule-dots" id="rl-dots">${pages.map(() => '<i></i>').join('')}</div>
       <div class="dialog-actions">
-        ${page > 0 ? '<button class="tactile-btn btn-ivory" id="rl-prev">上一页</button>' : ''}
-        <button class="tactile-btn btn-persimmon" id="rl-next">${isLast ? '明白啦' : '下一页'}</button>
+        <button class="tactile-btn btn-ivory" id="rl-prev"></button>
+        <button class="tactile-btn btn-persimmon" id="rl-next"></button>
       </div>
     `);
-    if ($('rl-prev')) $('rl-prev').onclick = () => this.openRulesModal(page - 1);
-    $('rl-next').onclick = () => (isLast ? this.closeModal() : this.openRulesModal(page + 1));
+
+    const syncPage = () => {
+      const cur = pages[curIdx];
+      const isLast = curIdx === pages.length - 1;
+      $('rl-title').textContent = cur.title;
+      $('rl-illus').innerHTML = cur.illus;
+      $('rl-desc').innerHTML = cur.desc;
+      $('rl-dots')
+        .querySelectorAll('i')
+        .forEach((dot, i) => dot.classList.toggle('on', i === curIdx));
+      $('rl-prev').textContent = curIdx === 0 ? '关闭' : '上一页';
+      $('rl-next').textContent = isLast ? '明白啦' : '下一页';
+    };
+
+    $('rl-prev').onclick = () => {
+      playSfx(() => sound.playUiClick());
+      if (curIdx === 0) this.closeModal();
+      else {
+        curIdx -= 1;
+        syncPage();
+      }
+    };
+    $('rl-next').onclick = () => {
+      playSfx(() => sound.playUiClick());
+      if (curIdx === pages.length - 1) this.closeModal();
+      else {
+        curIdx += 1;
+        syncPage();
+      }
+    };
+
+    syncPage();
   }
 
   openWorkshopModal() {
-    const renderContent = () => {
-      const cards = Object.values(GENERATOR_TIERS)
-        .map(
-          (t) => `<button class="tier-card${this.workshopTier === t.key ? ' is-picked' : ''}" data-tier="${t.key}">
-            <b>${t.name}</b>
-            <span>${t.subtitle}</span>
-          </button>`
-        )
-        .join('');
+    const cards = Object.values(GENERATOR_TIERS)
+      .map(
+        (t) => `<button class="tier-card${this.workshopTier === t.key ? ' is-picked' : ''}" data-tier="${t.key}">
+          <b>${t.name}</b>
+          <span>${t.subtitle}</span>
+        </button>`
+      )
+      .join('');
 
-      this.openModal(`
-        <h2>晴日出题工坊</h2>
-        <p class="dialog-sub">内置实时出题器与精确求解器，当场生成保证<b>100% 全部晒干可达</b>的全新残局。</p>
-        <div class="tier-list">${cards}</div>
-        <div class="dialog-actions">
-          <button class="tactile-btn btn-ivory" id="ws-cancel">取消</button>
-          <button class="tactile-btn btn-persimmon" id="ws-go">生成新题</button>
-        </div>
-      `);
+    this.openModal(`
+      <h2>晴日出题工坊</h2>
+      <p class="dialog-sub">内置实时出题器与精确求解器，当场生成保证<b>100% 全部晒干可达</b>的全新残局。</p>
+      <div class="tier-list" id="ws-tiers">${cards}</div>
+      <div class="dialog-actions">
+        <button class="tactile-btn btn-ivory" id="ws-cancel">取消</button>
+        <button class="tactile-btn btn-persimmon" id="ws-go">生成新题</button>
+      </div>
+    `);
 
-      $('paper-dialog')
-        .querySelectorAll('.tier-card')
-        .forEach((btn) =>
-          btn.addEventListener('click', () => {
-            this.workshopTier = btn.dataset.tier;
-            renderContent();
-          })
-        );
-      $('ws-cancel').onclick = () => this.closeModal();
-      $('ws-go').onclick = () => {
-        const puzzle = generatePuzzle(this.workshopTier, Date.now());
-        this.closeModal();
-        this.startWorkshopLevel(puzzle);
-      };
+    const tierBtns = Array.from($('ws-tiers').querySelectorAll('.tier-card'));
+    tierBtns.forEach((btn) =>
+      btn.addEventListener('click', () => {
+        playSfx(() => sound.playUiClick());
+        this.workshopTier = btn.dataset.tier;
+        tierBtns.forEach((b) => b.classList.toggle('is-picked', b === btn));
+      })
+    );
+
+    $('ws-cancel').onclick = () => this.closeModal();
+    $('ws-go').onclick = () => {
+      const puzzle = generatePuzzle(this.workshopTier, Date.now());
+      this.closeModal({ immediate: true });
+      this.startWorkshopLevel(puzzle);
     };
-    renderContent();
   }
 
   openResultModal() {
@@ -996,7 +1325,7 @@ class SunlitLaundryGame {
       };
     }
     $('rs-demo').onclick = () => {
-      this.closeModal();
+      this.closeModal({ immediate: true });
       this.runWitnessDemo();
     };
     $('rs-retry').onclick = () => this.loadLevelObject(this.level);
