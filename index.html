@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-Hans" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>《借风晒衣》可验证原型 v0.1｜有限回合空间策略解谜</title>
+  <meta name="description" content="《借风晒衣》H5 空间策略解谜游戏原型：在 3×3 晒场中安排厚薄衣物，每摆三件吹来一阵方向已知的风；前排挡风，干衣自动收走。" />
+  <link rel="stylesheet" href="./index.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="top-header">
+      <div class="brand-group">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">
+            借风晒衣
+            <span class="version-tag">v0.1 原型</span>
+          </h1>
+          <p class="brand-subtitle">不用抢时间，只借四阵风——在 3×3 晒场中预判遮挡、借风腾位</p>
+        </div>
+      </div>
+
+      <nav class="header-controls" aria-label="全局工具栏">
+        <button type="button" class="btn" id="btn-open-rules">规则与标准算例</button>
+        <button type="button" class="btn" id="btn-open-telemetry">测试记录与日志</button>
+        <button type="button" class="btn" id="btn-audio-toggle">音效：开</button>
+        <button type="button" class="btn" id="btn-theme-toggle">
+          <span id="theme-toggle-label">夜间模式</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main 3-Column Game Workspace -->
+    <main class="game-workspace">
+      <!-- Left Column: Level Selector & Garment Queue Basket -->
+      <section class="panel-card left-column" aria-label="衣篮队列与关卡选择">
+        <div>
+          <div class="panel-title-row">
+            <h2 class="panel-title">衣篮整条队列（提前公开）</h2>
+            <span style="font-size:0.72rem;color:var(--text-secondary);">厚衣H:+5分 / 薄衣L:+2分</span>
+          </div>
+          <p style="margin:4px 0 8px;font-size:0.75rem;color:var(--text-secondary);">
+            每确认摆放 3 件（教学关 2–3 件）自动吹来对应方向的一阵风。
+          </p>
+          <div id="queue-groups" class="queue-groups"></div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border-subtle);margin:2px 0;" />
+
+        <div>
+          <div class="panel-title-row" style="margin-bottom:8px;">
+            <h2 class="panel-title">15 个验证关卡（3 教学 + 12 标准/挑战）</h2>
+          </div>
+          <div id="level-list" class="level-list"></div>
+        </div>
+      </section>
+
+      <!-- Center Column: Active Level KPI, 4-Wind Forecast, 3x3 Drying Board & Action Bar -->
+      <section class="panel-card center-column" aria-label="晒场主盘面">
+        <div>
+          <div class="panel-title-row">
+            <h2 id="current-level-title" class="panel-title" style="font-size:1.05rem;">第 1 关 · 四向回旋</h2>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn btn-wind" id="btn-watch-witness" title="逐步回放本关预先验证的达标见证方案">
+                演示达标见证
+              </button>
+              <button type="button" class="btn" id="btn-Restart-level">一键重开</button>
+            </div>
+          </div>
+          <p id="current-level-focus" style="margin:4px 0 0;font-size:0.78rem;color:var(--text-secondary);"></p>
+        </div>
+
+        <!-- Score & State KPI Strip -->
+        <div class="kpi-strip">
+          <div class="kpi-box">
+            <span class="kpi-label">当前收衣分</span>
+            <span id="kpi-score" class="kpi-value" style="color:var(--dry-green);">0</span>
+            <span id="kpi-score-sub" class="kpi-sub">0厚×5 + 0薄×2</span>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-label">本关目标分</span>
+            <span id="kpi-target" class="kpi-value" style="color:var(--sun-amber);">20</span>
+            <span class="kpi-sub">终局达标线</span>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-label">已投放衣物</span>
+            <span id="kpi-placed" class="kpi-value">0/12</span>
+            <span class="kpi-sub">每轮触发阵风</span>
+          </div>
+          <div class="kpi-box">
+            <span class="kpi-label">剩余挪位券</span>
+            <span id="kpi-tickets" class="kpi-value" style="color:var(--wind-cyan);">2</span>
+            <span class="kpi-sub">移至空格不耗步</span>
+          </div>
+        </div>
+
+        <!-- 4-Gust Forecast Strip -->
+        <div>
+          <div class="panel-title-row" style="margin-bottom:6px;">
+            <span style="font-size:0.76rem;font-weight:700;color:var(--text-secondary);">
+              四阵风向预报（每条扫描线只吹遇到的第一件衣物，本阵不穿透）
+            </span>
+          </div>
+          <div id="wind-track" class="wind-track"></div>
+        </div>
+
+        <!-- 3x3 Courtyard Drying Board -->
+        <div class="courtyard-stage">
+          <div class="board-compass-wrapper">
+            <div id="compass-n" class="compass-edge compass-n" aria-hidden="true"></div>
+            <div id="compass-s" class="compass-edge compass-s" aria-hidden="true"></div>
+            <div id="compass-w" class="compass-edge compass-w" aria-hidden="true"></div>
+            <div id="compass-e" class="compass-edge compass-e" aria-hidden="true"></div>
+
+            <div id="drying-grid" class="drying-grid" role="grid" aria-label="3乘3晒衣网格"></div>
+          </div>
+
+          <!-- Confirmation & Move Ticket Action Bar -->
+          <div class="action-bar">
+            <div id="action-status-text" class="action-status-text"></div>
+
+            <!-- Normal Play Controls -->
+            <div id="normal-action-controls" class="action-buttons-row">
+              <button type="button" class="btn btn-primary" id="btn-confirm-action" disabled>
+                请先点空格预览 → 挂好
+              </button>
+              <button type="button" class="btn" id="btn-cancel-action" disabled>
+                取消预览
+              </button>
+              <button type="button" class="btn btn-accent" id="btn-toggle-move">
+                使用挪位券 (2)
+              </button>
+            </div>
+
+            <!-- Step-by-Step Replay Controls -->
+            <div id="replay-action-controls" class="action-buttons-row" hidden>
+              <button type="button" class="btn" id="btn-replay-prev">◀ 上一步</button>
+              <button type="button" class="btn btn-primary" id="btn-replay-next">下一步 ▶</button>
+              <button type="button" class="btn btn-wind" id="btn-replay-auto">自动播放</button>
+              <button type="button" class="btn" id="btn-replay-exit">退出回放继续玩</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Two-Level Hints, Gust Resolution Breakdown & Uncollected Diagnosis -->
+      <aside class="panel-card right-column" aria-label="提示与阵风结算复盘">
+        <div>
+          <div class="panel-title-row">
+            <h2 class="panel-title">分层提示（不直接剧透唯一答案）</h2>
+            <button type="button" class="btn" id="btn-step-hint" style="padding:4px 9px;font-size:0.74rem;">
+              一级提示：遮挡诊断
+            </button>
+          </div>
+          <div id="hint-display-box" class="callout-box tone-wind" style="margin-top:8px;" hidden></div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border-subtle);margin:2px 0;" />
+
+        <div>
+          <div class="panel-title-row" style="margin-bottom:8px;">
+            <h2 class="panel-title">每阵受风对象与终局未干诊断</h2>
+          </div>
+          <div id="gust-log-list" class="gust-log-list"></div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border-subtle);margin:2px 0;" />
+
+        <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.5;">
+          <strong>双重编码图例：</strong>
+          <div style="margin-top:4px;">
+            • <strong>薄衣 L（短衫轮廓）</strong>：初始湿度 <code>1💧</code>，受风 1 次即收走得 <strong>+2 分</strong>。<br/>
+            • <strong>厚衣 H（厚袄轮廓）</strong>：初始湿度 <code>2💧💧</code>，需跨 2 阵受风收走得 <strong>+5 分</strong>。<br/>
+            • <strong>同步受风</strong>：阵风结算前先锁定每行/列迎风第一件，同时减湿 1；即便前排本阵干了收走，后排本阵也不补吹。
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Rules & Section 08 Standard Walkthrough Modal -->
+  <div id="modal-rules" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-rules-title" hidden>
+    <div class="modal-dialog">
+      <div class="panel-title-row">
+        <h2 id="modal-rules-title" class="panel-title" style="font-size:1.1rem;">
+          《借风晒衣》核心规则与第 08 节完整可复算算例
+        </h2>
+        <button type="button" class="btn" id="btn-close-rules">关闭</button>
+      </div>
+
+      <div style="font-size:0.82rem;line-height:1.55;display:flex;flex-direction:column;gap:10px;">
+        <div class="callout-box tone-success">
+          <strong>总分公式：</strong> <code>总分 = 2 × 已收薄衣数(L) + 5 × 已收厚衣数(H)</code>（终局留在场上的未干衣物无论剩湿 1 或 2 均得 0 分，剩余挪位券不换分）。
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>规则项</th>
+              <th>规格说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>方向与前排挡风</strong></td>
+              <td>西风（左→右扫每行）、东风（右→左扫每行）、北风（上→下扫每列）、南风（下→上扫每列）。<strong>每条扫描线只锁定遇到的第一件衣物</strong>。</td>
+            </tr>
+            <tr>
+              <td><strong>同步受风结算</strong></td>
+              <td>累计投放满 3 件自动吹风：先按结算前盘面锁定所有迎风首件，同时减湿 1；湿度降为 0 的衣物自动收走计分。即便前排本阵收走，后排本阵也不补吹。</td>
+            </tr>
+            <tr>
+              <td><strong>挪位券（每局 2 次）</strong></td>
+              <td>在等待投放、尚未挂好当前衣物时可用：把 1 件在场衣物移到空格，湿度不变，不消耗投放次数，也不立即触发风。</td>
+            </tr>
+            <tr>
+              <td><strong>满盘跳过保护</strong></td>
+              <td>若轮到投放时 9 格全满，点击“本件放不下，跳过”确认：本件移出队列得 0 分，仍计 1 次投放，保证每 3 次都有风，绝不卡死。</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin:6px 0 2px;font-size:0.9rem;">策划书 08 节《一整局的可复算示例》（对应游戏内“第 1 关 · 四向回旋”）</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>投放轮次</th>
+              <th>按顺序落点（行,列）</th>
+              <th>本阵结算结果</th>
+              <th>累计分</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1–3 (西风→)</td>
+              <td><code>H→(1,1)；H→(2,1)；H→(3,1)</code></td>
+              <td>西风命中三行首件 H：湿度均 2→1；无收衣</td>
+              <td><strong>0</strong></td>
+            </tr>
+            <tr>
+              <td>4–6 (北风↓)</td>
+              <td><code>L→(1,2)；L→(1,3)；L→(2,2)</code></td>
+              <td>北风：(1,1)H 收走 +5；(1,2)L +2；(1,3)L +2；(2,2)L 被挡</td>
+              <td><strong>9</strong></td>
+            </tr>
+            <tr>
+              <td>7–9 (东风←)</td>
+              <td><code>H→(2,3)；H→(3,3)；H→(1,1)</code></td>
+              <td>东风命中 (1,1)、(2,3)、(3,3) 的 H；湿度均 2→1</td>
+              <td><strong>9</strong></td>
+            </tr>
+            <tr>
+              <td>10–12 (南风↑)</td>
+              <td><code>L→(1,2)；L→(1,3)；L→(3,2)</code></td>
+              <td>南风：(3,1)H 收走 +5；(3,2)L +2；(3,3)H +5</td>
+              <td><strong>21 ≥ 20</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Playtest Telemetry & Session Log Modal (Section 11 & 13) -->
+  <div id="modal-telemetry" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-telemetry-title" hidden>
+    <div class="modal-dialog">
+      <div class="panel-title-row">
+        <h2 id="modal-telemetry-title" class="panel-title" style="font-size:1.05rem;">
+          测试记录与动作日志（对应策划书 11 & 13 节验证指标）
+        </h2>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-wind" id="btn-export-telemetry">导出 JSON 日志</button>
+          <button type="button" class="btn" id="btn-close-telemetry">关闭</button>
+        </div>
+      </div>
+
+      <div id="telemetry-summary-stats" class="callout-box tone-wind"></div>
+
+      <div style="max-height:340px;overflow-y:auto;border:1px solid var(--border-subtle);border-radius:var(--radius-sm);">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>关卡</th>
+              <th>事件类型</th>
+              <th>前台用时</th>
+              <th>载荷详情</th>
+            </tr>
+          </thead>
+          <tbody id="telemetry-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

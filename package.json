@@ -1,0 +1,10 @@
+{
+  "name": "jggo-jie-feng-shai-yi",
+  "version": "0.1.0",
+  "description": "《借风晒衣》小游戏可验证原型 v0.1（3×3 有限回合空间策略解谜）",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 4173",
+    "test": "node test_engine.mjs"
+  }
+}
